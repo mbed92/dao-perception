@@ -9,9 +9,10 @@ YAML_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'config',
 
 class RandomObjectsGenerator:
     def __init__(self, mean_x=0.0, mean_y=0.0, mean_z=0.0,
-                 sigma_x=0.0, sigma_y=0.0, sigma_z=0.0,
-                 globalScaling_mean=0.2, globalScaling_signa=0.1,
-                 rand_x=True, rand_y=True, rand_z=True):
+                 sigma_x=0.1, sigma_y=0.1, sigma_z=0.1,
+                 globalScaling_mean=1.0, globalScaling_signa=0.1,
+                 rand_x=True, rand_y=True, rand_z=True,
+                 additional_objects_folder=None):
 
         self.mx = mean_x
         self.sx = sigma_x
@@ -25,8 +26,13 @@ class RandomObjectsGenerator:
         self.globalScaling_mean = globalScaling_mean
         self.globalScaling_sigma = globalScaling_signa
 
+        if additional_objects_folder is not None and os.path.exists(additional_objects_folder):
+            p.setAdditionalSearchPath(additional_objects_folder)
+        else:
+            print(f'Directory {additional_objects_folder} does not exist.')
+
         stream = open(YAML_CONFIG_PATH, 'r')
-        self.available_objects_urdf = yaml.safe_load(stream)["objects"]
+        self.available_objects_urdf = yaml.safe_load(stream)
 
     def __call__(self, flags=0):
         x, y, z = self.mx, self.my, self.mz
@@ -39,4 +45,5 @@ class RandomObjectsGenerator:
 
         object_to_load = np.random.choice(self.available_objects_urdf)
         object_scale = np.random.normal(self.globalScaling_mean, self.globalScaling_sigma)
-        return p.loadURDF(object_to_load, [x, y, z], flags=flags, globalScaling=object_scale)
+        object_id = p.loadURDF(object_to_load, [x, y, z], flags=flags, globalScaling=object_scale)
+        return object_id
