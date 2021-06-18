@@ -4,6 +4,7 @@ import pybullet as p
 import pybullet_data as pd
 from ray.rllib.env import EnvContext
 
+from world.action.primitives import PushAction
 from world.environment.objects import RandomObjectsGenerator
 
 
@@ -23,13 +24,76 @@ class PusherEnv(gym.Env):
                                  flags=self.flags)
         }
 
-        # generate random scene
-        self.num_objects = 1
-        self.objects = {}
+        # generate random object in the scene
         self.rog = RandomObjectsGenerator(mean_y=0.1, sigma_y=0.3, rand_z=False,
                                           additional_objects_folder=config["additional_objects_folder"])
+        self.object = self.rog()
 
         # calculate camera position
+        self.setup_camera()
+
+    def reset(self):
+        # return <obs>
+
+        # reset pusher
+        p.resetBasePositionAndOrientation(self.scene["pusher"],
+                                          self.config["pusher_position"],
+                                          self.config["pusher_quaternion"])
+
+        # reset scene
+        if self.object is not None:
+            p.removeBody(self.object)
+            self.object = None
+
+        # set new object
+        self.object = self.rog()
+
+    def step(self, action: PushAction = None):
+        assert type(action) is PushAction
+        observations, reward, done, info = list(), None, False, {}
+
+        # get current state
+        state_before = p.getBasePositionAndOrientation(self.object)
+        observations.append(state_before)
+
+        # execute action
+        if action is not None:
+            p_pos, _ = p.getBasePositionAndOrientation(self.scene["pusher"])
+            p.applyExternalForce(objectUniqueId=self.scene["pusher"], linkIndex=-1,
+                                 forceObj=action.push_vector, posObj=p_pos, flags=p.WORLD_FRAME)
+
+            # get current state after
+            self.proceed_sim(action.action_time)
+            state_after = p.getBasePositionAndOrientation(self.object)
+            observations.append(state_after)
+
+            # get current state again
+            self.proceed_sim(action.action_time)
+            state_post_after = p.getBasePositionAndOrientation(self.object)
+            observations.append(state_post_after)
+
+        return observations, reward, done, info
+
+    def seed(self, seed=None):
+        np.random.seed(seed)
+
+    def proceed_sim(self, time_to_proceed=1):
+        i = 0.0
+        while i < time_to_proceed:
+            p.stepSimulation()
+            i += self.config["simulation_timestep"]
+
+    def start_sim(self):
+        p.connect(p.DIRECT)
+        p.setAdditionalSearchPath(pd.getDataPath())
+        p.resetSimulation()
+        p.setTimeStep(self.config["simulation_timestep"])
+        p.setGravity(0, 0, -9.80991)
+
+    def stop_sim(self):
+        p.disconnect()
+
+    def setup_camera(self):
         up_axis_idx = 2
         self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(self.config["cam_target_pos"],
                                                               self.config["cam_distance"],
@@ -44,53 +108,6 @@ class PusherEnv(gym.Env):
                                                              self.aspect,
                                                              self.config["near_plane"],
                                                              self.config["far_plane"])
-
-    def reset(self):
-        # return <obs>
-
-        # reset pusher
-        p.resetBasePositionAndOrientation(self.scene["pusher"],
-                                          self.config["pusher_position"],
-                                          self.config["pusher_quaternion"])
-
-        # reset scene
-        if self.objects is not None and len(self.objects.keys()) > 0:
-            [p.removeBody(obj_id) for obj_id in self.objects.values()]
-            self.objects = dict()
-
-        # set new objects
-        objects = dict()
-        for i in range(self.num_objects):
-            key = f"obj_{i}"
-            objects[key] = self.rog()
-        self.objects = objects
-
-    def step(self, action=None):
-        # return <obs>, <reward: float>, <done: bool>, <info: dict>
-
-        # assert action in [0, 1], action
-        # if action == 0 and self.cur_pos > 0:
-        #     self.cur_pos -= 1
-        # elif action == 1:
-        #     self.cur_pos += 1
-        # done = self.cur_pos >= self.end_pos
-        # # Produce a random reward when we reach the goal.
-        # return [self.cur_pos], \
-        #        random.random() * 2 if done else -0.1, done, {}
-        p.stepSimulation()
-
-    def seed(self, seed=None):
-        np.random.seed(seed)
-
-    def start_sim(self):
-        p.connect(p.DIRECT)
-        p.setAdditionalSearchPath(pd.getDataPath())
-        p.resetSimulation()
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI)
-        p.setGravity(0, 0, -9.80991)
-
-    def stop_sim(self):
-        p.disconnect()
 
     def get_camera_image(self, color=True, raw=False):
         img_arr = p.getCameraImage(self.config["projection_w"],

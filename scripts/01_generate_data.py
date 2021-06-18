@@ -1,5 +1,3 @@
-import os
-
 from matplotlib import pylab, use
 
 use('TKAgg')
@@ -10,14 +8,15 @@ NUM_EPISODES = 10
 EPISODE_LENGTH = 100
 SHOW_INTERVAL = 10
 ENV_CONFIG = {
+    "simulation_timestep": 0.01,
     "plane_position": [0, 0, -0.3],
     "plane_quaternion": [0, 0, 0, 1],
     "pusher_position": [0, -0.5, 0],
     "pusher_quaternion": [0, 0, 0, 1],
-    "pusher_global_scaling": 0.5,
-    "cam_target_pos": [0, 0.1, 0.5],
+    "pusher_global_scaling": 0.1,
+    "cam_target_pos": [0, 0.3, 0.1],
     "cam_roll": 0,
-    "cam_pitch": -90,
+    "cam_pitch": 0,
     "cam_yaw": 0,
     "cam_distance": 1.5,
     "projection_w": 640,
@@ -31,13 +30,16 @@ ENV_CONFIG = {
 
 if __name__ == "__main__":
     myenv = world.environment.pusher.PusherEnv(ENV_CONFIG)
+    myactions = world.action.primitives.PushAction()
     fig = pylab.figure()
 
     for _ in range(NUM_EPISODES):
         myenv.reset()
 
         for i in range(EPISODE_LENGTH):
-            myenv.step()
+            action = myactions.random_sample()
+            observations, reward, done, info = myenv.step(action=action)
+            print(observations)
 
             if i % SHOW_INTERVAL == 0:
                 img = myenv.get_camera_image()
