@@ -22,9 +22,9 @@ class RandomObjectsGenerator:
         self.size_mean = 1.0 if size_mean is None else size_mean
         self.size_sigma = 0.2 if size_sigma is None else size_sigma
         self.mass_mean = 1.0 if mass_mean is None else mass_mean
-        self.mass_sigma = 0.5 if mass_sigma is None else mass_sigma
-        self.friction_mean = 0.2 if friction_mean is None else friction_mean
-        self.friction_sigma = 0.1 if friction_sigma is None else friction_sigma
+        self.mass_sigma = 0.2 if mass_sigma is None else mass_sigma
+        self.friction_mean = 0.1 if friction_mean is None else friction_mean
+        self.friction_sigma = 0.5 if friction_sigma is None else friction_sigma
         self.restitution_mean = 1.0 if restitution_mean is None else restitution_mean
         self.restitution_sigma = 0.9 if restitution_sigma is None else restitution_sigma
         self.movable = True if movable is None else movable
@@ -48,7 +48,7 @@ class RandomObjectsGenerator:
         self.MASS_ADJECTIVES = ["light", "medium_mass", "heavy"]
         self.FRICTION_ADJECTIVES = ["slippery", "smooth", "rough"]
         self.RESTITUTION_ADJECTIVES = ["soft", "springy", "hard"]
-        self.MOVABLE_ADJECTIVES = ["fixed", "movable"]
+        self.MOVABLE_ADJECTIVES = ["fixed", "movable", "rolling"]
         self.HAPTIC_ADJECTIVES = self.MASS_ADJECTIVES + self.FRICTION_ADJECTIVES + \
                                  self.RESTITUTION_ADJECTIVES + self.MOVABLE_ADJECTIVES
         self.mass = None
@@ -87,10 +87,12 @@ class RandomObjectsGenerator:
                 [self.RESTITUTION_ADJECTIVES[i] for i, r in enumerate(restitution_ranges) if
                  r[0] < self.restitution < r[1]][0])
 
-        if self.movable:
-            adjectives.append(self.MOVABLE_ADJECTIVES[1])
-        else:
+        if self.movable == 0:
             adjectives.append(self.MOVABLE_ADJECTIVES[0])
+        elif self.movable == 1:
+            adjectives.append(self.MOVABLE_ADJECTIVES[1])
+        elif self.movable == 2:
+            adjectives.append(self.MOVABLE_ADJECTIVES[2])
 
         if len(adjectives) == 0:
             print("Create object before checking its haptic properties.")
@@ -105,23 +107,31 @@ class RandomObjectsGenerator:
                                           self.friction_mean - self.friction_sigma)
         self.restitution = np.random.uniform(self.restitution_mean + self.restitution_sigma,
                                              self.restitution_mean - self.restitution_sigma)
-        self.movable = True if np.random.rand() < 0.8 else False
+        fixed_base = True if np.random.rand() < 0.1 else False
 
         # load the object
         obj_to_load = np.random.choice(self.objects_list)
         obj_id = p.loadURDF(obj_to_load, obj_position, self.orientation,
-                            useFixedBase=self.movable,
+                            useFixedBase=not fixed_base,
                             flags=flags,
                             globalScaling=obj_scale)
 
         # do not assign mass adjective if object is fixed
-        if self.movable:
-            p.changeDynamics(mass=self.mass, restitution=self.restitution, bodyUniqueId=obj_id, linkIndex=-1,
-                             lateralFriction=self.friction)
-        else:
+        if fixed_base:
             self.mass = None
             self.friction = None
-            p.changeDynamics(mass=999, restitution=self.restitution, bodyUniqueId=obj_id, linkIndex=-1,
-                             lateralFriction=999)
+            self.restitution = None
+            self.movable = 0
+            p.changeDynamics(mass=999, restitution=1.0, lateralFriction=999, bodyUniqueId=obj_id, linkIndex=-1)
 
+        else:
+
+            # check if rolling object was loaded
+            if "sphere" in obj_to_load:
+                self.movable = 2
+            else:
+                self.movable = 1
+
+            p.changeDynamics(mass=self.mass, restitution=self.restitution, bodyUniqueId=obj_id, linkIndex=-1,
+                             lateralFriction=self.friction)
         return obj_id

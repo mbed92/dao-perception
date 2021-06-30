@@ -1,3 +1,2 @@
-# all obj files will be loaded as soft body with randomized softness
-#- mug.urdf
-- springy.urdf
+- mug.urdf
+- sphere.urdf

@@ -60,7 +60,7 @@ class BaseEnv(gym.Env):
             p_pos, _ = p.getBasePositionAndOrientation(self.scene["pusher"])
             p.setJointMotorControl2(self.scene["pusher"], 0, p.POSITION_CONTROL, targetPosition=action.yaw,
                                     force=self.config["pusher_yaw_gain"], maxVelocity=self.config["pusher_yaw_vel"])
-            p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=1.0,
+            p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=0.8,
                                     force=action.force, maxVelocity=self.config["pusher_lin_vel"])
             p.stepSimulation()
             time.sleep(1. / 240.)

@@ -1,6 +1,10 @@
 <?xml version="0.0" ?>
 <robot name="urdf_robot">
   <link name="baseLink">
+  	<contact>
+      <rolling_friction value="0.001"/>
+      <spinning_friction value="0.001"/>
+    </contact>
 
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -10,7 +14,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-				<mesh filename="springy.obj" scale="0.15 0.15 0.15"/>
+				<mesh filename="sphere.obj" scale="0.15 0.15 0.15"/>
       </geometry>
       <material name="white">
         <color rgba="1 1 1 1"/>
