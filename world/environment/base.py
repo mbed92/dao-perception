@@ -3,7 +3,6 @@ import time
 import gym
 import numpy as np
 import pybullet as p
-import pybullet_data as pd
 from ray.rllib.env import EnvContext
 
 from world.environment.objects import RandomObjectsGenerator
@@ -72,7 +71,9 @@ class BaseEnv(gym.Env):
         else:
             p.connect(p.DIRECT)
 
-        p.setAdditionalSearchPath(pd.getDataPath())
+        if type(self.config["objects_path"]) is str:
+            p.setAdditionalSearchPath(self.config["objects_path"])
+
         p.resetSimulation()
         p.setGravity(0, 0, -9.80991)
 
@@ -86,7 +87,11 @@ class BaseEnv(gym.Env):
 
         if self.object is not None:
             p.removeBody(self.object)
-        self.object = self.rog.generate_object()
+
+        try:
+            self.object = self.rog.generate_object()
+        except ValueError as e:
+            print(e)
 
     def setup_scene(self):
         p.createCollisionShape(p.GEOM_PLANE)
