@@ -54,7 +54,7 @@ class BaseEnv(gym.Env):
     def get_observations(self, action):
         observations = list()
 
-        # set new position of the pusher
+        # set new position of the pusher w. r. t. the object
         p.removeBody(self.scene["pusher"])
         object_pos, _ = p.getBasePositionAndOrientation(self.object)
         self.scene["pusher"] = self.setup_pusher(object_pos=object_pos, action=action)
@@ -133,7 +133,7 @@ class BaseEnv(gym.Env):
         baseMass = 0  # fixed
         baseCollisionShapeIndex = base
         baseVisualShapeIndex = -1
-        linkMasses = [0.5, 0.01, 0.01]
+        linkMasses = [self.config["pusher_link_mass"]] * 3
         linkCollisionShapeIndices = [-1, link, pusher]
         linkVisualShapeIndices = [-1, link, pusher]
         linkPositions = [[0, 0, -0.1], [-0.1, 0, 0], [-0.1, 0, 0]]

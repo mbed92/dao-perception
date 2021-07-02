@@ -82,13 +82,13 @@ class RandomObjectsGenerator:
             norm_stiff = get_normalized_haptic_value(value=self.spring_stiffness,
                                                      minimum=self.spring_stiffness_mean - self.spring_stiffness_sigma,
                                                      maximum=self.spring_stiffness_mean + self.spring_stiffness_sigma)
-            haptic["stiffness"] = norm_stiff
+            haptic["spring_damping_stiffness"] = norm_stiff
 
         if self.elastic_stiffness is not None:
             norm_elastic = get_normalized_haptic_value(value=self.elastic_stiffness,
                                                        minimum=self.elastic_stiffness_mean - self.elastic_stiffness_sigma,
                                                        maximum=self.elastic_stiffness_mean + self.elastic_stiffness_sigma)
-            haptic["elasticity"] = norm_elastic
+            haptic["elasticity_stiffness"] = norm_elastic
 
         if len(haptic) == 0:
             print("Create object before checking its haptic properties.")
