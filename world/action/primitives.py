@@ -8,10 +8,10 @@ class PushAction:
 
     def __repr__(self):
         return f"Action():\t" \
-               f"start point={self.yaw}\tend point={self.force}\tforce={self.force}\t"
+               f"yaw={self.yaw}\tforce={self.force}"
 
     @classmethod
-    def random_sample(cls, yaw_zero=0.0, yaw_delta=0.1, force_zero=5, force_delta=2.0):
-        yaw = np.random.uniform(yaw_zero - yaw_delta, yaw_zero + yaw_delta)
-        force = np.random.uniform(force_zero - force_delta, force_zero + force_delta)
+    def random_sample(cls, force_x=10):
+        yaw = np.random.uniform(-np.pi, np.pi)
+        force = np.random.uniform(force_x - 0.5 * force_x, force_x + 0.5 * force_x)
         return cls(yaw, force)

@@ -3,29 +3,47 @@ import time
 import gym
 import numpy as np
 import pybullet as p
+import pybullet_data as pd
 from ray.rllib.env import EnvContext
+from scipy.spatial.transform import Rotation as R
 
 from world.environment.objects import RandomObjectsGenerator
+
+GRAVITY = -9.80991
+
+
+def pose_on_circle(radius, yaw, height, pos_offset=None):
+    x = np.cos(yaw) * radius
+    y = np.sin(yaw) * radius
+    pos = np.asarray([x, y, height])
+
+    if pos_offset is not None:
+        pos += np.asarray(pos_offset)
+
+    quat = R.from_euler('z', yaw).as_quat()
+    return pos, quat
 
 
 class BaseEnv(gym.Env):
     def __init__(self, config: EnvContext):
         self.config = config
-        self.start_sim()
-        self.flags = p.URDF_INITIALIZE_SAT_FEATURES
-        self.pivot = None
-        self.scene = {
-            "plane": self.setup_scene(),
-            "pusher": self.setup_pusher()
-        }
-
-        # generate random object in the scene
-        self.rog = RandomObjectsGenerator(self.config["object_position_mean"], self.config["object_position_sigma"],
-                                          self.config["object_quaternion"],
+        self.flags = p.RESET_USE_DEFORMABLE_WORLD
+        self.scene = {}
+        self.rog = RandomObjectsGenerator(self.config["object_position"], [0, 0, 0, 1],
                                           self.config["object_size_mean"], self.config["object_size_sigma"],
                                           self.config["object_mass_mean"], self.config["object_mass_sigma"],
-                                          self.config["object_friction_mean"], self.config["object_friction_sigma"])
+                                          self.config["object_friction_mean"], self.config["object_friction_sigma"],
+                                          self.config["object_restitution_mean"],
+                                          self.config["object_restitution_sigma"],
+                                          self.config["object_spring_stiffness_mean"],
+                                          self.config["object_spring_stiffness_sigma"],
+                                          self.config["object_elastic_stiffness_mean"],
+                                          self.config["object_elastic_stiffness_sigma"])
+
         self.object = None
+
+        # start the simulation
+        self.start_sim()
 
         # calculate camera position
         self.setup_camera()
@@ -36,9 +54,11 @@ class BaseEnv(gym.Env):
     def get_observations(self, action):
         observations = list()
 
-        # get current state
-        state_before = p.getBasePositionAndOrientation(self.object)
-        observations.append(state_before)
+        # set new position of the pusher
+        p.removeBody(self.scene["pusher"])
+        object_pos, _ = p.getBasePositionAndOrientation(self.object)
+        self.scene["pusher"] = self.setup_pusher(object_pos=object_pos, action=action)
+        observations.append(object_pos)
 
         if action is not None:
             # apply force on a pusher object
@@ -57,13 +77,10 @@ class BaseEnv(gym.Env):
         t_end = time.time() + action_steps * self.config["simulation_timestep"]
 
         while time.time() < t_end:
-            p_pos, _ = p.getBasePositionAndOrientation(self.scene["pusher"])
-            p.setJointMotorControl2(self.scene["pusher"], 0, p.POSITION_CONTROL, targetPosition=action.yaw,
-                                    force=self.config["pusher_yaw_gain"], maxVelocity=self.config["pusher_yaw_vel"])
-            p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=0.8,
+            p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-10,
                                     force=action.force, maxVelocity=self.config["pusher_lin_vel"])
             p.stepSimulation()
-            time.sleep(1. / 240.)
+            time.sleep(1.0 / 240.)
 
     def start_sim(self):
         if self.config["simulation_use_gui"]:
@@ -71,60 +88,67 @@ class BaseEnv(gym.Env):
         else:
             p.connect(p.DIRECT)
 
-        if type(self.config["objects_path"]) is str:
-            p.setAdditionalSearchPath(self.config["objects_path"])
-
-        p.resetSimulation()
-        p.setGravity(0, 0, -9.80991)
-
-    def stop_sim(self):
-        p.disconnect()
+        self.reset_sim()
 
     def reset_sim(self):
-        if self.scene["pusher"] is not None:
-            p.removeBody(self.scene["pusher"])
-        self.scene["pusher"] = self.setup_pusher()
+        p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)
+        p.setAdditionalSearchPath(pd.getDataPath())
+        p.setGravity(0, 0, GRAVITY)
 
-        if self.object is not None:
-            p.removeBody(self.object)
+        self.scene["plane"] = self.setup_scene()
+        self.scene["pusher"] = self.setup_pusher()
 
         try:
             self.object = self.rog.generate_object()
         except ValueError as e:
             print(e)
 
-    def setup_scene(self):
-        p.createCollisionShape(p.GEOM_PLANE)
-        return p.createMultiBody(0, 0)
+    def stop_sim(self):
+        p.disconnect()
 
-    def setup_pusher(self):
+    def setup_scene(self):
+        plane_id = p.loadURDF("plane.urdf", self.config["plane_position"], self.config["plane_quaternion"])
+        p.changeDynamics(bodyUniqueId=plane_id, linkIndex=-1, mass=0, restitution=1.0, lateralFriction=1.0)
+        return plane_id
+
+    def setup_pusher(self, object_pos=None, action=None):
         # create collision boxes
-        plane = p.createMultiBody(0, 0)
         base = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.1, 0.1])
-        link = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.15, 0.02, 0.02])
+        link = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.02, 0.02])
         pusher = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.02, 0.05, 0.1])
 
-        baseMass = 0
+        # pusher position around the object on a circle
+        pos_offset = self.config["object_position"]
+        if object_pos is not None and action is not None:
+            yaw = action.yaw
+            pos_offset += np.array(object_pos)
+        else:
+            yaw = 0.0
+
+        base_position, base_orientation = pose_on_circle(radius=self.config["pusher_radius"],
+                                                         yaw=yaw,
+                                                         height=self.config["pusher_height"],
+                                                         pos_offset=pos_offset)
+
+        baseMass = 0  # fixed
         baseCollisionShapeIndex = base
         baseVisualShapeIndex = -1
-        basePosition = self.config["pusher_position"]
-        baseOrientation = self.config["plane_quaternion"]
         linkMasses = [0.5, 0.01, 0.01]
         linkCollisionShapeIndices = [-1, link, pusher]
         linkVisualShapeIndices = [-1, link, pusher]
-        linkPositions = [[-0.1, 0, -0.13], [0.2, 0, 0], [0.3, 0, 0]]
-        linkOrientations = [[0, 0, 0, 1], [0, 0.1305262, 0, 0.9914449], [0, 0, 0, 1]]
-        linkInertialFramePositions = [[0, 0, 0]] * len(linkMasses)
-        linkInertialFrameOrientations = [[0, 0, 0, 1]] * len(linkMasses)
+        linkPositions = [[0, 0, -0.1], [-0.1, 0, 0], [-0.1, 0, 0]]
+        linkOrientations = [[0, 0, 0, 1], [0, -0.0663219, 0, 0.9977983], [0, 0, 0, 1]]
+        linkInertialFramePositions = linkPositions
+        linkInertialFrameOrientations = linkOrientations
         linkParentIndices = [0, 1, 2]
-        linkJointTypes = [p.JOINT_REVOLUTE, p.JOINT_PRISMATIC, p.JOINT_REVOLUTE]
+        linkJointTypes = [p.JOINT_FIXED, p.JOINT_PRISMATIC, p.JOINT_REVOLUTE]
         linkJointAxis = [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
 
         pusher_id = p.createMultiBody(baseMass=baseMass,
                                       baseCollisionShapeIndex=baseCollisionShapeIndex,
                                       baseVisualShapeIndex=baseVisualShapeIndex,
-                                      basePosition=basePosition,
-                                      baseOrientation=baseOrientation,
+                                      basePosition=base_position,
+                                      baseOrientation=base_orientation,
                                       linkMasses=linkMasses,
                                       linkCollisionShapeIndices=linkCollisionShapeIndices,
                                       linkVisualShapeIndices=linkVisualShapeIndices,
@@ -140,7 +164,7 @@ class BaseEnv(gym.Env):
         p.changeDynamics(pusher_id, 2, linearDamping=1e-5, angularDamping=1e-5, jointDamping=1e-5)
 
         # attach body to the fixed position
-        p.createConstraint(parentBodyUniqueId=plane,
+        p.createConstraint(parentBodyUniqueId=self.scene["plane"],
                            parentLinkIndex=-1,
                            childBodyUniqueId=pusher_id,
                            childLinkIndex=-1,

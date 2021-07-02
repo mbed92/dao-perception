@@ -12,7 +12,7 @@ class PusherEnvGenerator(BaseEnv):
         assert type(action) is PushAction and self.object is not None
         observations, reward, done, info = list(), None, False, {}
         observations = self.get_observations(action)
-        info["adjectives"] = self.rog.get_haptic_adjectives()
+        info["haptic"] = self.rog.get_haptic_values()
         return observations, reward, done, info
 
     def reset(self):

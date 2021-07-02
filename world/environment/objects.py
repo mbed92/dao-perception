@@ -2,35 +2,40 @@ import os
 
 import numpy as np
 import pybullet as p
-import yaml
 
 YAML_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'config', 'objects.yaml')
 
 
+def get_normalized_haptic_value(value, minimum, maximum):
+    return (value - minimum) / (maximum - minimum)
+
+
 class RandomObjectsGenerator:
     def __init__(self,
-                 position_mean=None, position_sigma=None,
-                 orientation=None,
+                 position=None, orientation=None,
                  size_mean=None, size_sigma=None,
                  mass_mean=None, mass_sigma=None,
                  friction_mean=None, friction_sigma=None,
                  restitution_mean=None, restitution_sigma=None,
-                 movable=None):
-        self.position_mean = [0.0, 0.0, 0.1] if position_mean is None else position_mean
-        self.position_sigma = [0.0, 0.0, 0.0] if position_sigma is None else position_sigma
+                 spring_stiffness_mean=None, spring_stiffness_sigma=None,
+                 elastic_stiffness_mean=None, elastic_stiffness_sigma=None):
+
+        self.position = [0.0, 0.0, 0.1] if position is None else position
         self.orientation = [0, 0, 0, 1] if orientation is None else orientation
         self.size_mean = 1.0 if size_mean is None else size_mean
         self.size_sigma = 0.2 if size_sigma is None else size_sigma
         self.mass_mean = 1.0 if mass_mean is None else mass_mean
         self.mass_sigma = 0.2 if mass_sigma is None else mass_sigma
-        self.friction_mean = 0.1 if friction_mean is None else friction_mean
-        self.friction_sigma = 0.5 if friction_sigma is None else friction_sigma
+        self.friction_mean = 0.5 if friction_mean is None else friction_mean
+        self.friction_sigma = 0.4 if friction_sigma is None else friction_sigma
         self.restitution_mean = 1.0 if restitution_mean is None else restitution_mean
         self.restitution_sigma = 0.9 if restitution_sigma is None else restitution_sigma
-        self.movable = True if movable is None else movable
+        self.spring_stiffness_mean = 100.0 if spring_stiffness_mean is None else spring_stiffness_mean
+        self.spring_stiffness_sigma = 90.0 if spring_stiffness_sigma is None else spring_stiffness_sigma
+        self.elastic_stiffness_mean = 100.0 if elastic_stiffness_mean is None else elastic_stiffness_mean
+        self.elastic_stiffness_sigma = 90.0 if elastic_stiffness_sigma is None else elastic_stiffness_sigma
 
-        assert len(self.position_mean) == 3
-        assert len(self.position_sigma) == 3
+        assert len(self.position) == 3
         assert len(self.orientation) == 4
         assert type(self.size_mean) is float
         assert type(self.size_sigma) is float
@@ -40,98 +45,90 @@ class RandomObjectsGenerator:
         assert type(self.friction_sigma) is float
         assert type(self.restitution_mean) is float
         assert type(self.restitution_sigma) is float
-        assert type(self.movable) is bool
-
-        stream = open(YAML_CONFIG_PATH, 'r')
-        self.objects_list = yaml.safe_load(stream)
+        assert type(self.spring_stiffness_mean) is float
+        assert type(self.spring_stiffness_sigma) is float
+        assert type(self.elastic_stiffness_mean) is float
+        assert type(self.elastic_stiffness_sigma) is float
 
         self.MASS_ADJECTIVES = ["light", "medium_mass", "heavy"]
         self.FRICTION_ADJECTIVES = ["slippery", "smooth", "rough"]
         self.RESTITUTION_ADJECTIVES = ["soft", "springy", "hard"]
-        self.MOVABLE_ADJECTIVES = ["fixed", "movable", "rolling"]
         self.HAPTIC_ADJECTIVES = self.MASS_ADJECTIVES + self.FRICTION_ADJECTIVES + \
-                                 self.RESTITUTION_ADJECTIVES + self.MOVABLE_ADJECTIVES
+                                 self.RESTITUTION_ADJECTIVES
+
+        self.object_types = ["cube.obj"]
+
+        # physical properies
+        self.obj_size = None
         self.mass = None
         self.friction = None
         self.restitution = None
+        self.spring_stiffness = None
+        self.elastic_stiffness = None
 
-    def get_haptic_adjectives(self):
-        adjectives = list()
+    def get_haptic_values(self):
+        haptic = dict()
 
-        if self.mass is not None:
-            mass_ranges = [
-                [0.0, self.mass_mean - 0.25 * self.mass_sigma],
-                [self.mass_mean - 0.25 * self.mass_sigma, self.mass_mean + 0.25 * self.mass_sigma],
-                [self.mass_mean + 0.25 * self.mass_sigma, 999.9]
-            ]
-            adjectives.append(
-                [self.MASS_ADJECTIVES[i] for i, r in enumerate(mass_ranges) if r[0] < self.mass < r[1]][0])
-
-        if self.friction is not None:
-            friction_ranges = [
-                [0.0, self.friction_mean - 0.25 * self.friction_sigma],
-                [self.friction_mean - 0.25 * self.friction_sigma, self.friction_mean + 0.25 * self.friction_sigma],
-                [self.friction_mean + 0.25 * self.friction_sigma, 999.9]
-            ]
-            adjectives.append(
-                [self.FRICTION_ADJECTIVES[i] for i, r in enumerate(friction_ranges) if r[0] < self.friction < r[1]][0])
+        if self.mass is not None and self.friction is not None:
+            norm_mass = get_normalized_haptic_value(value=self.mass,
+                                                    minimum=self.mass_mean - self.mass_sigma,
+                                                    maximum=self.mass_mean + self.mass_sigma)
+            norm_fri = get_normalized_haptic_value(value=self.friction,
+                                                   minimum=self.friction_mean - self.friction_sigma,
+                                                   maximum=self.friction_mean + self.friction_sigma)
+            norm_mass_fri = (norm_mass + norm_fri) / 2.0
+            haptic["mass_friction"] = norm_mass_fri
 
         if self.restitution is not None:
-            restitution_ranges = [
-                [0.0, self.restitution_mean - 0.25 * self.restitution_sigma],
-                [self.restitution_mean - 0.25 * self.restitution_sigma,
-                 self.restitution_mean + 0.25 * self.restitution_sigma],
-                [self.restitution_mean + 0.25 * self.restitution_sigma, 999.9]
-            ]
-            adjectives.append(
-                [self.RESTITUTION_ADJECTIVES[i] for i, r in enumerate(restitution_ranges) if
-                 r[0] < self.restitution < r[1]][0])
+            norm_resti = get_normalized_haptic_value(value=self.restitution,
+                                                     minimum=self.restitution_mean - self.restitution_sigma,
+                                                     maximum=self.restitution_mean + self.restitution_sigma)
+            haptic["restitution"] = norm_resti
 
-        if self.movable == 0:
-            adjectives.append(self.MOVABLE_ADJECTIVES[0])
-        elif self.movable == 1:
-            adjectives.append(self.MOVABLE_ADJECTIVES[1])
-        elif self.movable == 2:
-            adjectives.append(self.MOVABLE_ADJECTIVES[2])
+        if self.spring_stiffness is not None:
+            norm_stiff = get_normalized_haptic_value(value=self.spring_stiffness,
+                                                     minimum=self.spring_stiffness_mean - self.spring_stiffness_sigma,
+                                                     maximum=self.spring_stiffness_mean + self.spring_stiffness_sigma)
+            haptic["stiffness"] = norm_stiff
 
-        if len(adjectives) == 0:
+        if self.elastic_stiffness is not None:
+            norm_elastic = get_normalized_haptic_value(value=self.elastic_stiffness,
+                                                       minimum=self.elastic_stiffness_mean - self.elastic_stiffness_sigma,
+                                                       maximum=self.elastic_stiffness_mean + self.elastic_stiffness_sigma)
+            haptic["elasticity"] = norm_elastic
+
+        if len(haptic) == 0:
             print("Create object before checking its haptic properties.")
 
-        return adjectives
+        return haptic
 
-    def generate_object(self, flags=0):
-        obj_position = [np.random.uniform(m - s, m + s) for m, s in zip(self.position_mean, self.position_sigma)]
-        obj_scale = np.random.uniform(self.size_mean - self.size_sigma, self.size_mean + self.size_sigma)
+    def randomize_properties(self):
+        self.obj_size = np.random.uniform(self.size_mean - self.size_sigma, self.size_mean + self.size_sigma)
         self.mass = np.random.uniform(self.mass_mean + self.mass_sigma, self.mass_mean - self.mass_sigma)
         self.friction = np.random.uniform(self.friction_mean + self.friction_sigma,
                                           self.friction_mean - self.friction_sigma)
+
         self.restitution = np.random.uniform(self.restitution_mean + self.restitution_sigma,
                                              self.restitution_mean - self.restitution_sigma)
-        fixed_base = True if np.random.rand() < 0.1 else False
 
-        # load the object
-        obj_to_load = np.random.choice(self.objects_list)
-        obj_id = p.loadURDF(obj_to_load, obj_position, self.orientation,
-                            useFixedBase=not fixed_base,
-                            flags=flags,
-                            globalScaling=obj_scale)
+        self.spring_stiffness = np.random.uniform(self.spring_stiffness_mean + self.spring_stiffness_sigma,
+                                                  self.spring_stiffness_mean - self.spring_stiffness_sigma)
+
+        self.elastic_stiffness = np.random.uniform(self.elastic_stiffness_mean + self.elastic_stiffness_sigma,
+                                                   self.elastic_stiffness_mean - self.elastic_stiffness_sigma)
+
+    def generate_object(self, rand_properies=True):
+        if rand_properies:
+            self.randomize_properties()
+
+        obj_to_load = np.random.choice(self.object_types)
+        obj_id = p.loadSoftBody(obj_to_load, basePosition=self.position, scale=self.obj_size, mass=self.mass,
+                                useNeoHookean=0, useBendingSprings=1, useMassSpring=1, useSelfCollision=0,
+                                useFaceContact=1, springDampingAllDirections=1, collisionMargin=1e-4,
+                                springElasticStiffness=self.elastic_stiffness,
+                                springDampingStiffness=self.spring_stiffness, frictionCoeff=self.friction)
 
         # do not assign mass adjective if object is fixed
-        if fixed_base:
-            self.mass = None
-            self.friction = None
-            self.restitution = None
-            self.movable = 0
-            p.changeDynamics(mass=999, restitution=1.0, lateralFriction=999, bodyUniqueId=obj_id, linkIndex=-1)
-
-        else:
-
-            # check if rolling object was loaded
-            if "sphere" in obj_to_load:
-                self.movable = 2
-            else:
-                self.movable = 1
-
-            p.changeDynamics(mass=self.mass, restitution=self.restitution, bodyUniqueId=obj_id, linkIndex=-1,
-                             lateralFriction=self.friction)
+        p.changeDynamics(bodyUniqueId=obj_id, linkIndex=-1,
+                         mass=self.mass, restitution=self.restitution)
         return obj_id
