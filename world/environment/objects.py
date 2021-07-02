@@ -49,13 +49,6 @@ class RandomObjectsGenerator:
         assert type(self.spring_stiffness_sigma) is float
         assert type(self.elastic_stiffness_mean) is float
         assert type(self.elastic_stiffness_sigma) is float
-
-        self.MASS_ADJECTIVES = ["light", "medium_mass", "heavy"]
-        self.FRICTION_ADJECTIVES = ["slippery", "smooth", "rough"]
-        self.RESTITUTION_ADJECTIVES = ["soft", "springy", "hard"]
-        self.HAPTIC_ADJECTIVES = self.MASS_ADJECTIVES + self.FRICTION_ADJECTIVES + \
-                                 self.RESTITUTION_ADJECTIVES
-
         self.object_types = ["cube.obj"]
 
         # physical properies
