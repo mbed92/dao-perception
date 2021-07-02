@@ -69,7 +69,7 @@ class RandomObjectsGenerator:
             norm_fri = get_normalized_haptic_value(value=self.friction,
                                                    minimum=self.friction_mean - self.friction_sigma,
                                                    maximum=self.friction_mean + self.friction_sigma)
-            norm_mass_fri = (norm_mass + norm_fri) / 2.0
+            norm_mass_fri = max(norm_mass, norm_fri)
             haptic["mass_friction"] = norm_mass_fri
 
         if self.restitution is not None:
@@ -119,9 +119,12 @@ class RandomObjectsGenerator:
                                 useNeoHookean=0, useBendingSprings=1, useMassSpring=1, useSelfCollision=0,
                                 useFaceContact=1, springDampingAllDirections=1, collisionMargin=1e-4,
                                 springElasticStiffness=self.elastic_stiffness,
-                                springDampingStiffness=self.spring_stiffness, frictionCoeff=self.friction)
+                                springDampingStiffness=self.spring_stiffness,
+                                frictionCoeff=self.friction)
 
         # do not assign mass adjective if object is fixed
         p.changeDynamics(bodyUniqueId=obj_id, linkIndex=-1,
-                         mass=self.mass, restitution=self.restitution)
+                         mass=self.mass, restitution=self.restitution,
+                         spinningFriction=self.friction,
+                         rollingFriction=self.friction)
         return obj_id
