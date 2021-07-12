@@ -56,9 +56,9 @@ class BaseEnv(gym.Env):
 
         # set new position of the pusher w. r. t. the object
         p.removeBody(self.scene["pusher"])
-        object_pos, _ = p.getBasePositionAndOrientation(self.object)
-        self.scene["pusher"] = self.setup_pusher(object_pos=object_pos, action=action)
-        observations.append(object_pos)
+        state_before = p.getBasePositionAndOrientation(self.object)
+        self.scene["pusher"] = self.setup_pusher(object_pos=state_before[0], action=action)
+        observations.append(state_before)
 
         if action is not None:
             # apply force on a pusher object
@@ -71,16 +71,26 @@ class BaseEnv(gym.Env):
             state_post_after = p.getBasePositionAndOrientation(self.object)
             observations.append(state_post_after)
 
-        return observations
+        return np.asarray([np.hstack(o) for o in observations])
 
     def step_sim_with_force(self, action_steps, action):
         t_end = time.time() + action_steps * self.config["simulation_timestep"]
 
-        while time.time() < t_end:
-            p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-10,
-                                    force=action.force, maxVelocity=self.config["pusher_lin_vel"])
-            p.stepSimulation()
-            time.sleep(1.0 / 240.)
+        if self.config["realtime"]:
+            while time.time() < t_end:
+                p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-1,
+                                        force=action.force, maxVelocity=self.config["pusher_lin_vel"])
+                p.stepSimulation()
+
+                if self.config["simulation_timestep"] > 0.0:
+                    time.sleep(self.config["simulation_timestep"])
+        else:
+            i = 0
+            while i < action_steps:
+                p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-1,
+                                        force=action.force, maxVelocity=self.config["pusher_lin_vel"])
+                p.stepSimulation()
+                i += 1
 
     def start_sim(self):
         if self.config["simulation_use_gui"]:

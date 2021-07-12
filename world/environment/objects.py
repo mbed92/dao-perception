@@ -6,8 +6,15 @@ import pybullet as p
 YAML_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'config', 'objects.yaml')
 
 
-def get_normalized_haptic_value(value, minimum, maximum):
-    return (value - minimum) / (maximum - minimum)
+class Haptic:
+    MASS_FRICTION = "mass_friction"
+    RESTITUTION = "restitution"
+    SPRING_DAMPING_STIFFNESS = "spring_damping_stiffness"
+    ELASTIC_STIFFNESS = "elasticity_stiffness"
+
+
+def normalize(value, minimum, maximum, low=0.0, high=1.0):
+    return low + high * ((value - minimum) / (maximum - minimum))
 
 
 class RandomObjectsGenerator:
@@ -30,10 +37,10 @@ class RandomObjectsGenerator:
         self.friction_sigma = 0.4 if friction_sigma is None else friction_sigma
         self.restitution_mean = 1.0 if restitution_mean is None else restitution_mean
         self.restitution_sigma = 0.9 if restitution_sigma is None else restitution_sigma
-        self.spring_stiffness_mean = 100.0 if spring_stiffness_mean is None else spring_stiffness_mean
-        self.spring_stiffness_sigma = 90.0 if spring_stiffness_sigma is None else spring_stiffness_sigma
-        self.elastic_stiffness_mean = 100.0 if elastic_stiffness_mean is None else elastic_stiffness_mean
-        self.elastic_stiffness_sigma = 90.0 if elastic_stiffness_sigma is None else elastic_stiffness_sigma
+        self.spring_stiffness_mean = 400.0 if spring_stiffness_mean is None else spring_stiffness_mean
+        self.spring_stiffness_sigma = 200.0 if spring_stiffness_sigma is None else spring_stiffness_sigma
+        self.elastic_stiffness_mean = 400.0 if elastic_stiffness_mean is None else elastic_stiffness_mean
+        self.elastic_stiffness_sigma = 200.0 if elastic_stiffness_sigma is None else elastic_stiffness_sigma
 
         assert len(self.position) == 3
         assert len(self.orientation) == 4
@@ -63,32 +70,32 @@ class RandomObjectsGenerator:
         haptic = dict()
 
         if self.mass is not None and self.friction is not None:
-            norm_mass = get_normalized_haptic_value(value=self.mass,
-                                                    minimum=self.mass_mean - self.mass_sigma,
-                                                    maximum=self.mass_mean + self.mass_sigma)
-            norm_fri = get_normalized_haptic_value(value=self.friction,
-                                                   minimum=self.friction_mean - self.friction_sigma,
-                                                   maximum=self.friction_mean + self.friction_sigma)
+            norm_mass = normalize(value=self.mass,
+                                  minimum=self.mass_mean - self.mass_sigma,
+                                  maximum=self.mass_mean + self.mass_sigma)
+            norm_fri = normalize(value=self.friction,
+                                 minimum=self.friction_mean - self.friction_sigma,
+                                 maximum=self.friction_mean + self.friction_sigma)
             norm_mass_fri = max(norm_mass, norm_fri)
-            haptic["mass_friction"] = norm_mass_fri
+            haptic[Haptic.MASS_FRICTION] = norm_mass_fri
 
         if self.restitution is not None:
-            norm_resti = get_normalized_haptic_value(value=self.restitution,
-                                                     minimum=self.restitution_mean - self.restitution_sigma,
-                                                     maximum=self.restitution_mean + self.restitution_sigma)
-            haptic["restitution"] = norm_resti
+            norm_resti = normalize(value=self.restitution,
+                                   minimum=self.restitution_mean - self.restitution_sigma,
+                                   maximum=self.restitution_mean + self.restitution_sigma)
+            haptic[Haptic.RESTITUTION] = norm_resti
 
         if self.spring_stiffness is not None:
-            norm_stiff = get_normalized_haptic_value(value=self.spring_stiffness,
-                                                     minimum=self.spring_stiffness_mean - self.spring_stiffness_sigma,
-                                                     maximum=self.spring_stiffness_mean + self.spring_stiffness_sigma)
-            haptic["spring_damping_stiffness"] = norm_stiff
+            norm_stiff = normalize(value=self.spring_stiffness,
+                                   minimum=self.spring_stiffness_mean - self.spring_stiffness_sigma,
+                                   maximum=self.spring_stiffness_mean + self.spring_stiffness_sigma)
+            haptic[Haptic.SPRING_DAMPING_STIFFNESS] = norm_stiff
 
         if self.elastic_stiffness is not None:
-            norm_elastic = get_normalized_haptic_value(value=self.elastic_stiffness,
-                                                       minimum=self.elastic_stiffness_mean - self.elastic_stiffness_sigma,
-                                                       maximum=self.elastic_stiffness_mean + self.elastic_stiffness_sigma)
-            haptic["elasticity_stiffness"] = norm_elastic
+            norm_elastic = normalize(value=self.elastic_stiffness,
+                                     minimum=self.elastic_stiffness_mean - self.elastic_stiffness_sigma,
+                                     maximum=self.elastic_stiffness_mean + self.elastic_stiffness_sigma)
+            haptic[Haptic.ELASTIC_STIFFNESS] = norm_elastic
 
         if len(haptic) == 0:
             print("Create object before checking its haptic properties.")

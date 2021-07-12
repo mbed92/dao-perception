@@ -1,34 +1,58 @@
-import argparse
-import gym
-from gym.spaces import Discrete, Box
-import numpy as np
-import os
-import random
+import tensorflow as tf
 
-import ray
-from ray import tune
-from ray.tune import grid_search
-from ray.rllib.env.env_context import EnvContext
-from ray.rllib.models import ModelCatalog
-from ray.rllib.models.tf.tf_modelv2 import TFModelV2
-from ray.rllib.models.tf.fcnet import FullyConnectedNetwork
-from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
-from ray.rllib.models.torch.fcnet import FullyConnectedNetwork as TorchFC
-from ray.rllib.utils.framework import try_import_tf, try_import_torch
-from ray.rllib.utils.test_utils import check_learning_achieved
+from world.physics.utils import create_bidir_lstm_layer
 
-class CustomModel(TFModelV2):
-    """Example of a keras custom model that just delegates to an fc-net."""
 
-    def __init__(self, obs_space, action_space, num_outputs, model_config,
-                 name):
-        super(CustomModel, self).__init__(obs_space, action_space, num_outputs,
-                                          model_config, name)
-        self.model = FullyConnectedNetwork(obs_space, action_space,
-                                           num_outputs, model_config, name)
+class HapticRegressor(tf.keras.Model):
+    def __init__(self, batch_size: int, num_outputs: int, action_kernel_size: int, dropout: float, lstm_units: int):
+        super().__init__()
+        self.batch_size = batch_size
+        self.num_outputs = num_outputs
+        self.action_kernel_size = action_kernel_size
+        self.dropout = dropout
+        self.lstm_units = lstm_units
 
-    def forward(self, input_dict, state, seq_lens):
-        return self.model.forward(input_dict, state, seq_lens)
+        # encodes input states in to the feature form
+        self.state_encoder = tf.keras.Sequential([
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(128),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Activation("relu"),
+            tf.keras.layers.Dropout(self.dropout),
+            tf.keras.layers.Dense(128)
+        ])
 
-    def value_function(self):
-        return self.model.value_function()
+        # aggregate data from timesteps
+        self.aggregator = create_bidir_lstm_layer(self.batch_size,
+                                                  self.lstm_units,
+                                                  dropout=self.dropout,
+                                                  stateful=True,
+                                                  return_states=True)
+        self.state = None
+
+        # final layer
+        self.regressor = tf.keras.Sequential([
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(128),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Dense(self.num_outputs)
+        ])
+
+
+    def call(self, inputs, training=None, mask=None):
+        observations, action = inputs
+        state_features = self.state_encoder(observations, training=training)
+
+        feed = tf.concat([state_features, action], -1)[..., tf.newaxis]
+        feed = tf.cast(feed, tf.float32)
+
+        lstm_state = self.state
+        lstm_outputs = self.aggregator(feed, initial_state=lstm_state, training=training)
+        self.state = lstm_outputs[1:]
+
+        predictions = self.regressor(lstm_outputs[0], training=training)
+
+        return predictions
+
+    def reset_states(self):
+        self.aggregator.reset_states()

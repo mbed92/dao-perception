@@ -12,9 +12,10 @@ if __name__ == "__main__":
     for _ in range(NUM_EPISODES):
         for _ in range(NUM_ACTIONS):
             action = world.action.primitives.PushAction.random_sample()
-            print(action)
+            # print(action)
             observations, reward, done, info = myenv.step(action=action)
-            print(info)
+            print(info["observations_numpy"])
+
         myenv.reset()
 
     myenv.stop_sim()
