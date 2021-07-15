@@ -1,0 +1,67 @@
+import os
+import pickle
+import time
+from argparse import ArgumentParser
+
+import yaml
+from numpy import asarray, concatenate
+
+import world
+
+ENV_CONFIG = yaml.safe_load(open("../config/gather_data.yaml", 'r'))
+
+
+def create_dataset(myenv, file, n_episodes, n_actions):
+    dataset = {"observations": list(), "actions": list(), "y": list()}
+    for n_ep in range(n_episodes):
+        batch_obs, batch_act, batch_y = list(), list(), list()
+        for n_act in range(n_actions):
+            action = world.action.primitives.PushAction.random_sample()
+            observations, _, _, info = myenv.step(action=action)
+            batch_obs.append(info["observations_numpy"][0])
+            batch_act.append(info["observations_numpy"][1])
+            batch_y.append(asarray([v for v in info["haptic"].values()]))
+
+        # dump data after each episode and restart an environment
+        print("Finished episode {}".format(n_ep))
+        dataset['observations'].append(concatenate(batch_obs, 0))
+        dataset['actions'].append(concatenate(batch_act, 0))
+        dataset['y'].append(asarray(batch_y))
+        myenv.reset()
+    pickle.dump(dataset, file, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def start(args):
+    myenv = world.environment.pusher.PusherEnvGenerator(ENV_CONFIG)
+
+    # create folder for data
+    os.makedirs(args.data_path, exist_ok=True)
+
+    # save data for test and train
+    mytime = int(time.time())
+    train_pickle = os.path.join(args.data_path, "{}_{}.pickle".format("train", mytime))
+    test_pickle = os.path.join(args.data_path, "{}_{}.pickle".format("test", mytime))
+
+    with open(train_pickle, 'wb') as ftrain:
+        create_dataset(myenv, ftrain, args.n_episodes_train, args.n_actions)
+
+    with open(test_pickle, 'wb') as ftest:
+        # myenv.rog.object_types = ['sphere.obj']
+        create_dataset(myenv, ftest, args.n_episodes_test, args.n_actions)
+
+    myenv.stop_sim()
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+
+    parser.add_argument('--data-path', type=str,
+                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30")
+    parser.add_argument('--data-file', type=str, default="data")
+    parser.add_argument('--n-episodes-train', type=int, default=100)
+    parser.add_argument('--n-episodes-test', type=int, default=10)
+    parser.add_argument('--n-actions', type=int, default=30)
+    args, _ = parser.parse_known_args()
+    world.physics.utils.allow_memory_growth()
+
+    start(args)

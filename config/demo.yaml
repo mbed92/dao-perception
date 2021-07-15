@@ -1,7 +1,7 @@
 simulation_timestep: 0.00416666666  # simulation settings
 simulation_use_gui: True
 simulation_action_steps: 300
-realtime: False
+realtime: True
 
 plane_position: [ 0, 0, 0 ]  # plane settings
 plane_quaternion: [ 0, 0, 0, 1 ]
@@ -36,8 +36,8 @@ near_plane: 0.01
 far_plane: 100
 fov: 60
 
-num_outputs: 4  # haptic regression network
-batch_size: 1
+num_outputs: 4 # haptic regression network
+batch_size: 30
 action_kernel_size: 3
-dropout: 0.
+dropout: 0.8
 lstm_units: 32

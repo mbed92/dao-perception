@@ -14,12 +14,10 @@ class HapticRegressor(tf.keras.Model):
 
         # encodes input states in to the feature form
         self.state_encoder = tf.keras.Sequential([
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128),
+            tf.keras.layers.Conv1D(128, 1),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation("relu"),
-            tf.keras.layers.Dropout(self.dropout),
-            tf.keras.layers.Dense(128)
+            tf.keras.layers.Dropout(self.dropout)
         ])
 
         # aggregate data from timesteps
@@ -43,7 +41,7 @@ class HapticRegressor(tf.keras.Model):
         observations, action = inputs
         state_features = self.state_encoder(observations, training=training)
 
-        feed = tf.concat([state_features, action], -1)[..., tf.newaxis]
+        feed = tf.concat([state_features, action], -1)
         feed = tf.cast(feed, tf.float32)
 
         lstm_state = self.state

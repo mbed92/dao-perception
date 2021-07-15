@@ -8,11 +8,14 @@ from world.physics.phys_net import HapticRegressor
 class PusherEnvGenerator(BaseEnv):
     def __init__(self, config: EnvContext):
         super().__init__(config)
-        self.haptic_regressor = HapticRegressor(batch_size=config["batch_size"],
-                                                num_outputs=config["num_outputs"],
-                                                action_kernel_size=config["action_kernel_size"],
-                                                dropout=config["dropout"],
-                                                lstm_units=config["lstm_units"])
+
+    @staticmethod
+    def get_model(config):
+        return HapticRegressor(batch_size=config["batch_size"],
+                               num_outputs=config["num_outputs"],
+                               action_kernel_size=config["action_kernel_size"],
+                               dropout=config["dropout"],
+                               lstm_units=config["lstm_units"])
 
     def step(self, action: PushAction = None):
         assert type(action) is PushAction and self.object is not None
