@@ -42,3 +42,4 @@ batch_size: 30
 action_kernel_size: 3
 dropout: 0.8
 lstm_units: 32
+lstm_stateful: False

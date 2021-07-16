@@ -8,7 +8,7 @@ import utils
 import world
 
 tf.executing_eagerly()
-ENV_CONFIG = yaml.safe_load(open("../config/train_haptic.yaml", 'r'))
+ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_offline.yaml", 'r'))
 
 
 def start(args):
@@ -43,16 +43,16 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     parser.add_argument('--logs-path', type=str, default="./logs_offline")
-    parser.add_argument('--batch-size', type=int, default=10)
+    parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--epochs', type=int, default=1000)
     parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--lr-decay-steps', type=float, default=10)
+    parser.add_argument('--lr-decay-steps', type=float, default=200)
     parser.add_argument('--lr-decay-rate', type=float, default=0.99)
     parser.add_argument('--split-train-ratio', type=float, default=0.9)
     parser.add_argument('--dataset-train', type=str,
-                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30/train_1626435930.npy")
+                        default="/media/mbed/internal/backup/rl-physnet/train5000_test500x10/train_1626436481.npy")
     parser.add_argument('--dataset-test', type=str,
-                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30/test_1626435930.npy")
+                        default="/media/mbed/internal/backup/rl-physnet/train5000_test500x10/test_1626436481.npy")
 
     args, _ = parser.parse_known_args()
     world.physics.utils.allow_memory_growth()

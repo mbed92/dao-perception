@@ -15,7 +15,8 @@ class PusherEnvGenerator(BaseEnv):
                                num_outputs=config["num_outputs"],
                                action_kernel_size=config["action_kernel_size"],
                                dropout=config["dropout"],
-                               lstm_units=config["lstm_units"])
+                               lstm_units=config["lstm_units"],
+                               stateful_lstm=config["lstm_stateful"])
 
     def step(self, action: PushAction = None):
         assert type(action) is PushAction and self.object is not None

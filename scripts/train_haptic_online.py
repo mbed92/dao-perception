@@ -8,7 +8,7 @@ import yaml
 import world
 
 tf.executing_eagerly()
-ENV_CONFIG = yaml.safe_load(open("../config/train_haptic.yaml", 'r'))
+ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_online.yaml", 'r'))
 
 
 def start(args):
