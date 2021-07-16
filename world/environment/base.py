@@ -55,7 +55,9 @@ class BaseEnv(gym.Env):
         observations = list()
 
         # set new position of the pusher w. r. t. the object
-        p.removeBody(self.scene["pusher"])
+        if self.scene["pusher"] is not None:
+            p.removeBody(self.scene["pusher"])
+
         state_before = p.getBasePositionAndOrientation(self.object)
         self.scene["pusher"] = self.setup_pusher(object_pos=state_before[0], action=action)
         observations.append(state_before)
@@ -106,7 +108,7 @@ class BaseEnv(gym.Env):
         p.setGravity(0, 0, GRAVITY)
 
         self.scene["plane"] = self.setup_scene()
-        self.scene["pusher"] = self.setup_pusher()
+        self.scene["pusher"] = None  # pusher is respawned on each get_observation
 
         try:
             self.object = self.rog.generate_object()
@@ -118,7 +120,7 @@ class BaseEnv(gym.Env):
 
     def setup_scene(self):
         plane_id = p.loadURDF("plane.urdf", self.config["plane_position"], self.config["plane_quaternion"])
-        p.changeDynamics(bodyUniqueId=plane_id, linkIndex=-1, mass=0, restitution=1.0, lateralFriction=1.0)
+        p.changeDynamics(bodyUniqueId=plane_id, linkIndex=-1, mass=0, restitution=1.0, lateralFriction=10.0)
         return plane_id
 
     def setup_pusher(self, object_pos=None, action=None):
@@ -129,24 +131,20 @@ class BaseEnv(gym.Env):
 
         # pusher position around the object on a circle
         pos_offset = self.config["object_position"]
-        if object_pos is not None and action is not None:
-            yaw = action.yaw
-            pos_offset += np.array(object_pos)
-        else:
-            yaw = 0.0
-
+        pos_offset = pos_offset + np.array(object_pos) if object_pos is not None else pos_offset
+        yaw = action.yaw if action is not None else 0.0
         base_position, base_orientation = pose_on_circle(radius=self.config["pusher_radius"],
                                                          yaw=yaw,
                                                          height=self.config["pusher_height"],
                                                          pos_offset=pos_offset)
 
-        baseMass = 0  # fixed
+        baseMass = 0  # fixed base
         baseCollisionShapeIndex = base
         baseVisualShapeIndex = -1
         linkMasses = [self.config["pusher_link_mass"]] * 3
         linkCollisionShapeIndices = [-1, link, pusher]
         linkVisualShapeIndices = [-1, link, pusher]
-        linkPositions = [[0, 0, -0.1], [-0.1, 0, 0], [-0.1, 0, 0]]
+        linkPositions = [[0, 0, 0], [-0.1, 0, 0], [-0.1, 0, 0]]
         linkOrientations = [[0, 0, 0, 1], [0, -0.0663219, 0, 0.9977983], [0, 0, 0, 1]]
         linkInertialFramePositions = linkPositions
         linkInertialFrameOrientations = linkOrientations

@@ -6,25 +6,25 @@ realtime: True
 plane_position: [ 0, 0, 0 ]  # plane settings
 plane_quaternion: [ 0, 0, 0, 1 ]
 
-pusher_radius: 0.7 # pusher settings
-pusher_height: 0.1
+pusher_radius: 0.9 # pusher settings
+pusher_height: 0.0
 pusher_link_mass: 0.5
 pusher_lin_vel: 1.0
 
 object_position: [ 0, 0, 0.3 ] # object settings
 object_quaternion: [ 0, 0, 0, 1 ]
 object_size_mean: 0.5
-object_size_sigma: 0.2
-object_mass_mean: 1.0
+object_size_sigma: 0.1
+object_mass_mean: 2.0
 object_mass_sigma: 0.9
-object_friction_mean: 1.0
-object_friction_sigma: 0.8
+object_friction_mean: 5.0
+object_friction_sigma: 2.5
 object_restitution_mean: 1.0
 object_restitution_sigma: 0.9
-object_spring_stiffness_mean: 200.0
-object_spring_stiffness_sigma: 190.0
-object_elastic_stiffness_mean: 200.0
-object_elastic_stiffness_sigma: 190.0
+object_spring_stiffness_mean: 300.0
+object_spring_stiffness_sigma: 50.0
+object_elastic_stiffness_mean: 300.0
+object_elastic_stiffness_sigma: 50.0
 
 cam_target_pos: [ 0, 0.3, 0.1 ]  # camera settings
 cam_roll: 0
