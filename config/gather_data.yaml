@@ -1,13 +1,13 @@
-simulation_timestep: 0.00416666666  # simulation settings
+simulation_timestep: 0.01666666666  # simulation settings
+simulation_action_steps: 150
 simulation_use_gui: False
-simulation_action_steps: 300
 realtime: False
 
 plane_position: [ 0, 0, 0 ]  # plane settings
 plane_quaternion: [ 0, 0, 0, 1 ]
 
-pusher_radius: 0.7 # pusher settings
-pusher_height: 0.1
+pusher_radius: 0.9 # pusher settings
+pusher_height: 0.0
 pusher_link_mass: 0.5
 pusher_lin_vel: 1.0
 
@@ -20,11 +20,11 @@ object_mass_sigma: 0.9
 object_friction_mean: 1.0
 object_friction_sigma: 0.5
 object_restitution_mean: 1.0
-object_restitution_sigma: 0.9
-object_spring_stiffness_mean: 500.0
-object_spring_stiffness_sigma: 200.0
-object_elastic_stiffness_mean: 500.0
-object_elastic_stiffness_sigma: 200.0
+object_restitution_sigma: 0.5
+object_spring_stiffness_mean: 700.0
+object_spring_stiffness_sigma: 350.0
+object_elastic_stiffness_mean: 700.0
+object_elastic_stiffness_sigma: 350.0
 
 cam_target_pos: [ 0, 0.3, 0.1 ]  # camera settings
 cam_roll: 0

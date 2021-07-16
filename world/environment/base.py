@@ -1,4 +1,5 @@
 import time
+from functools import wraps
 
 import gym
 import numpy as np
@@ -8,6 +9,19 @@ from ray.rllib.env import EnvContext
 from scipy.spatial.transform import Rotation as R
 
 from world.environment.objects import RandomObjectsGenerator
+
+
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kw):
+        ts = time.time()
+        result = f(*args, **kw)
+        te = time.time()
+        print(f'Func: {f.__name__} took: {te - ts} sec')
+        return result
+
+    return wrap
+
 
 GRAVITY = -9.80991
 
@@ -64,34 +78,33 @@ class BaseEnv(gym.Env):
 
         if action is not None:
             # apply force on a pusher object
-            self.step_sim_with_force(self.config["simulation_action_steps"], action)
+            self.step_sim_with_force(action)
             state_after = p.getBasePositionAndOrientation(self.object)
             observations.append(state_after)
 
             # wait more and get new observation
-            self.step_sim_with_force(self.config["simulation_action_steps"], action)
+            self.step_sim_with_force(action)
             state_post_after = p.getBasePositionAndOrientation(self.object)
             observations.append(state_post_after)
 
         return np.asarray([np.hstack(o) for o in observations])
 
-    def step_sim_with_force(self, action_steps, action):
-        t_end = time.time() + action_steps * self.config["simulation_timestep"]
+    def step_sim_with_force(self, action):
+        def step():
+            p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-1,
+                                    force=action.force, maxVelocity=self.config["pusher_lin_vel"])
+            p.stepSimulation()
 
         if self.config["realtime"]:
+            t_start = time.time()
+            t_end = t_start + self.config["simulation_action_steps"] * self.config["simulation_timestep"]
             while time.time() < t_end:
-                p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-1,
-                                        force=action.force, maxVelocity=self.config["pusher_lin_vel"])
-                p.stepSimulation()
-
-                if self.config["simulation_timestep"] > 0.0:
-                    time.sleep(self.config["simulation_timestep"])
+                step()
+                time.sleep(self.config["simulation_timestep"])
         else:
             i = 0
-            while i < action_steps:
-                p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-1,
-                                        force=action.force, maxVelocity=self.config["pusher_lin_vel"])
-                p.stepSimulation()
+            while i < self.config["simulation_action_steps"]:
+                step()
                 i += 1
 
     def start_sim(self):
@@ -99,6 +112,9 @@ class BaseEnv(gym.Env):
             p.connect(p.GUI)
         else:
             p.connect(p.DIRECT)
+
+        if self.config["realtime"]:
+            p.setRealTimeSimulation(1)
 
         self.reset_sim()
 
@@ -108,12 +124,14 @@ class BaseEnv(gym.Env):
         p.setGravity(0, 0, GRAVITY)
 
         self.scene["plane"] = self.setup_scene()
-        self.scene["pusher"] = None  # pusher is respawned on each get_observation
+        self.scene["pusher"] = None  # pusher is respawned on each get_observation()
 
         try:
             self.object = self.rog.generate_object()
         except ValueError as e:
             print(e)
+
+        p.stepSimulation()
 
     def stop_sim(self):
         p.disconnect()
@@ -130,8 +148,8 @@ class BaseEnv(gym.Env):
         pusher = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.02, 0.05, 0.1])
 
         # pusher position around the object on a circle
-        pos_offset = self.config["object_position"]
-        pos_offset = pos_offset + np.array(object_pos) if object_pos is not None else pos_offset
+        pos_offset = self.config["object_position"] + np.array(object_pos) \
+            if object_pos is not None else self.config["object_position"]
         yaw = action.yaw if action is not None else 0.0
         base_position, base_orientation = pose_on_circle(radius=self.config["pusher_radius"],
                                                          yaw=yaw,

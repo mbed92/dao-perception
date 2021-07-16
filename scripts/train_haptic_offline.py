@@ -50,9 +50,9 @@ if __name__ == "__main__":
     parser.add_argument('--lr-decay-rate', type=float, default=0.99)
     parser.add_argument('--split-train-ratio', type=float, default=0.9)
     parser.add_argument('--dataset-train', type=str,
-                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30/train_1626356584.pickle")
+                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30/train_1626435930.npy")
     parser.add_argument('--dataset-test', type=str,
-                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30/test_1626356584.pickle")
+                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30/test_1626435930.npy")
 
     args, _ = parser.parse_known_args()
     world.physics.utils.allow_memory_growth()

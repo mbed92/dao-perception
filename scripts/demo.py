@@ -8,7 +8,7 @@ ENV_CONFIG = yaml.safe_load(open("../config/demo.yaml", 'r'))
 
 if __name__ == "__main__":
     myenv = world.environment.pusher.PusherEnvGenerator(ENV_CONFIG)
-    myenv.rog.object_types = ['soccerball_2.obj']
+    myenv.rog.object_types = ['duck_2.obj']
     myenv.reset()
 
     for _ in range(NUM_EPISODES):

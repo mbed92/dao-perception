@@ -1,8 +1,8 @@
 import os
-import pickle
 import time
 from argparse import ArgumentParser
 
+import numpy as np
 import yaml
 from numpy import asarray, concatenate
 
@@ -28,7 +28,7 @@ def create_dataset(myenv, file, n_episodes, n_actions):
         dataset['actions'].append(concatenate(batch_act, 0))
         dataset['y'].append(asarray(batch_y))
         myenv.reset()
-    pickle.dump(dataset, file, protocol=pickle.HIGHEST_PROTOCOL)
+        np.save(file, dataset)
 
 
 def start(args):
@@ -39,19 +39,19 @@ def start(args):
 
     # save data for test and train
     mytime = int(time.time())
-    train_pickle = os.path.join(args.data_path, "{}_{}.pickle".format("train", mytime))
-    test_pickle = os.path.join(args.data_path, "{}_{}.pickle".format("test", mytime))
+    train_file = os.path.join(args.data_path, "{}_{}.npy".format("train", mytime))
+    test_file = os.path.join(args.data_path, "{}_{}.npy".format("test", mytime))
 
     # generate train dataset with a cube shape
-    myenv.rog.object_types = ['cube.obj', 'soccerball_2.obj']
+    myenv.rog.object_types = ['cube.obj']
     myenv.reset()
-    with open(train_pickle, 'wb') as ftrain:
+    with open(train_file, 'wb') as ftrain:
         create_dataset(myenv, ftrain, args.n_episodes_train, args.n_actions)
 
     # generate a test dataset with a different object shape
-    myenv.rog.object_types = ['duck_2.obj', 'stone_2.obj']
+    myenv.rog.object_types = ['stone_2.obj']
     myenv.reset()
-    with open(test_pickle, 'wb') as ftest:
+    with open(test_file, 'wb') as ftest:
         create_dataset(myenv, ftest, args.n_episodes_test, args.n_actions)
 
     myenv.stop_sim()
@@ -63,9 +63,9 @@ if __name__ == "__main__":
     parser.add_argument('--data-path', type=str,
                         default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30")
     parser.add_argument('--data-file', type=str, default="data")
-    parser.add_argument('--n-episodes-train', type=int, default=10000)
-    parser.add_argument('--n-episodes-test', type=int, default=100)
-    parser.add_argument('--n-actions', type=int, default=30)
+    parser.add_argument('--n-episodes-train', type=int, default=10)
+    parser.add_argument('--n-episodes-test', type=int, default=10)
+    parser.add_argument('--n-actions', type=int, default=10)
     args, _ = parser.parse_known_args()
     world.physics.utils.allow_memory_growth()
 

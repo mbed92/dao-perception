@@ -1,12 +1,10 @@
-import pickle
-
 import numpy as np
 import tensorflow as tf
 
 
-def load(pickle_path, batch_size=1, split_ratio=-1):
-    with open(pickle_path, 'rb') as f:
-        dataset = pickle.load(f)
+def load(file_path, batch_size=1, split_ratio=-1):
+    with open(file_path, 'rb') as f:
+        dataset = np.load(f, allow_pickle=True).item()  # retrieve dict object
     assert len(dataset['observations']) == len(dataset['actions']) == len(dataset['y'])
 
     obs = np.asarray(dataset['observations'])
