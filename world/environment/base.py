@@ -87,7 +87,7 @@ class BaseEnv(gym.Env):
             state_post_after = p.getBasePositionAndOrientation(self.object)
             observations.append(state_post_after)
 
-        return np.asarray([np.hstack(o) for o in observations])
+        return observations
 
     def step_sim_with_force(self, action):
         def step():

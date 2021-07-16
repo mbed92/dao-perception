@@ -4,11 +4,22 @@ import tensorflow as tf
 
 tf.executing_eagerly()
 
+from ray.rllib.agents import ppo
+import ray
 
 ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_rl.yaml", 'r'))
 
 env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)
-action = world.action.primitives.PushAction.random_sample()
+# action = world.action.primitives.PushAction.random_sample()
+ray.init()
+trainer = ppo.PPOTrainer(
+    env=world.environment.pusher.RLPusherEnvGenerator,
+    config={
+        "env_config": ENV_CONFIG
+    }
+)
+
+print(trainer.train())
 
 # def start(args):
 #     model = myenv.get_model(ENV_CONFIG)
