@@ -17,14 +17,14 @@ object_size_mean: 0.5
 object_size_sigma: 0.1
 object_mass_mean: 2.0
 object_mass_sigma: 0.9
-object_friction_mean: 5.0
-object_friction_sigma: 2.5
+object_friction_mean: 1.0
+object_friction_sigma: 0.5
 object_restitution_mean: 1.0
 object_restitution_sigma: 0.9
-object_spring_stiffness_mean: 300.0
-object_spring_stiffness_sigma: 50.0
-object_elastic_stiffness_mean: 300.0
-object_elastic_stiffness_sigma: 50.0
+object_spring_stiffness_mean: 500.0
+object_spring_stiffness_sigma: 200.0
+object_elastic_stiffness_mean: 500.0
+object_elastic_stiffness_sigma: 200.0
 
 cam_target_pos: [ 0, 0.3, 0.1 ]  # camera settings
 cam_roll: 0

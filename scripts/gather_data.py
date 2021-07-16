@@ -43,11 +43,13 @@ def start(args):
     test_pickle = os.path.join(args.data_path, "{}_{}.pickle".format("test", mytime))
 
     # generate train dataset with a cube shape
+    myenv.rog.object_types = ['cube.obj', 'soccerball_2.obj']
+    myenv.reset()
     with open(train_pickle, 'wb') as ftrain:
         create_dataset(myenv, ftrain, args.n_episodes_train, args.n_actions)
 
     # generate a test dataset with a different object shape
-    myenv.rog.object_types = ['duck_2.obj']
+    myenv.rog.object_types = ['duck_2.obj', 'stone_2.obj']
     myenv.reset()
     with open(test_pickle, 'wb') as ftest:
         create_dataset(myenv, ftest, args.n_episodes_test, args.n_actions)
