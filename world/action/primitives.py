@@ -3,6 +3,7 @@ import numpy as np
 
 class PushAction:
     def __init__(self, yaw, force):
+        super().__init__()
         self.force = force
         self.yaw = yaw
 
