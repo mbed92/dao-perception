@@ -29,7 +29,7 @@ class BaseEnv(gym.Env):
         self.config = config
         self.flags = p.RESET_USE_DEFORMABLE_WORLD
         self.scene = {}
-        self.rog = RandomObjectsGenerator(self.config["object_position"], [0, 0, 0, 1],
+        self.rog = RandomObjectsGenerator(self.config["object_position"], self.config["object_quaternion"],
                                           self.config["object_size_mean"], self.config["object_size_sigma"],
                                           self.config["object_mass_mean"], self.config["object_mass_sigma"],
                                           self.config["object_friction_mean"], self.config["object_friction_sigma"],
