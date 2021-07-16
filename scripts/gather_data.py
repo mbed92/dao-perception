@@ -28,7 +28,7 @@ def create_dataset(myenv, file, n_episodes, n_actions):
         dataset['actions'].append(concatenate(batch_act, 0))
         dataset['y'].append(asarray(batch_y))
         myenv.reset()
-        np.save(file, dataset)
+    np.save(file, dataset)
 
 
 def start(args):
@@ -61,10 +61,10 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     parser.add_argument('--data-path', type=str,
-                        default="/media/mbed/internal/backup/rl-physnet/train10000_test1000x30")
+                        default="/media/mbed/internal/backup/rl-physnet/train5000_test500x10")
     parser.add_argument('--data-file', type=str, default="data")
-    parser.add_argument('--n-episodes-train', type=int, default=10)
-    parser.add_argument('--n-episodes-test', type=int, default=10)
+    parser.add_argument('--n-episodes-train', type=int, default=5000)
+    parser.add_argument('--n-episodes-test', type=int, default=500)
     parser.add_argument('--n-actions', type=int, default=10)
     args, _ = parser.parse_known_args()
     world.physics.utils.allow_memory_growth()
