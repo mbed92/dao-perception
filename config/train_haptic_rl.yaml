@@ -38,7 +38,7 @@ far_plane: 100
 fov: 60
 
 num_outputs: 4 # haptic regression network
-batch_size: 30
+batch_size: 1
 action_kernel_size: 3
 dropout: 0.8
 lstm_units: 32

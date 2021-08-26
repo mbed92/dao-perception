@@ -8,6 +8,7 @@ import pybullet_data as pd
 from ray.rllib.env import EnvContext
 from scipy.spatial.transform import Rotation as R
 
+from world.action.primitives import PushAction
 from world.environment.objects import RandomObjectsGenerator
 
 
@@ -65,7 +66,7 @@ class BaseEnv(gym.Env):
     def seed(self, seed=None):
         np.random.seed(seed)
 
-    def get_observations(self, action):
+    def get_observations(self, action: PushAction):
         observations = list()
 
         # set new position of the pusher w. r. t. the object
@@ -89,7 +90,7 @@ class BaseEnv(gym.Env):
 
         return observations
 
-    def step_sim_with_force(self, action):
+    def step_sim_with_force(self, action: PushAction):
         def step():
             p.setJointMotorControl2(self.scene["pusher"], 1, p.POSITION_CONTROL, targetPosition=-1,
                                     force=action.force, maxVelocity=self.config["pusher_lin_vel"])
@@ -141,7 +142,7 @@ class BaseEnv(gym.Env):
         p.changeDynamics(bodyUniqueId=plane_id, linkIndex=-1, mass=0, restitution=1.0, lateralFriction=10.0)
         return plane_id
 
-    def setup_pusher(self, object_pos=None, action=None):
+    def setup_pusher(self, object_pos=None, action: PushAction = None):
         # create collision boxes
         base = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.1, 0.1])
         link = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.02, 0.02])
@@ -150,6 +151,7 @@ class BaseEnv(gym.Env):
         # pusher position around the object on a circle
         pos_offset = self.config["object_position"] + np.array(object_pos) \
             if object_pos is not None else self.config["object_position"]
+
         yaw = action.yaw if action is not None else 0.0
         base_position, base_orientation = pose_on_circle(radius=self.config["pusher_radius"],
                                                          yaw=yaw,
