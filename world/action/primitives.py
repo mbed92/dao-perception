@@ -12,6 +12,8 @@ class PushAction:
 
     @staticmethod
     def from_numpy(action):
+        assert len(action.shape) <= 2
+        action = action.reshape(-1)
         yaw = action[0]
         force = action[1]
         return PushAction(yaw, force)

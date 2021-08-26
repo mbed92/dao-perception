@@ -38,7 +38,7 @@ class HapticRegressor(tf.keras.Model):
             tf.keras.layers.Dense(self.num_outputs)
         ])
 
-    def call(self, inputs, training=None, mask=None):
+    def __call__(self, inputs, training=None, mask=None):
         observations, action = inputs
         state_features = self.state_encoder(observations, training=training)
 

@@ -53,65 +53,82 @@ class RLPusherEnvGenerator(py_environment.PyEnvironment, BaseEnv):
             name='push')
 
         self._observation_spec = array_spec.BoundedArraySpec(
-            shape=(21, ),
+            shape=(1,self.observations_size),
             dtype=np.float32,
             minimum=-10.0,
             maximum=10.0,
             name='map')
 
-        self._state = [0] * 21
+        self._state = np.array([[0.0] * self.observations_size], dtype=np.float32)
         self._episode_ended = False
-        self.time_penalty = 0
+        self._time_penalty = config["time_penalty_init"]
+        self._time_penalty_delta = config["time_penalty_delta"]
+        self._termination_reward = config["termination_reward"]
+        self._termination_steps = config["termination_steps"]
+        self._steps = 0
 
+        # load a haptic net
         self.nn = HapticRegressor(batch_size=config["batch_size"],
                                   num_outputs=config["num_outputs"],
                                   action_kernel_size=config["action_kernel_size"],
                                   dropout=config["dropout"],
                                   lstm_units=config["lstm_units"],
                                   stateful_lstm=config["lstm_stateful"])
+
         path = tf.train.latest_checkpoint(self.config["load_path"])
         ckpt = tf.train.Checkpoint(model=self.nn)
         ckpt.restore(path).expect_partial()
         print(f"Model loaded from {self.config['load_path']}")
 
-    # tf agents compatiibility
     def _reset(self):
         self.reset_sim()
 
         if not self.nn.stateful_lstm:
             self.nn.reset_states()
 
+        self._time_penalty = 0.0
         self._episode_ended = False
-        self.time_penalty = 0
-
-        self._state = [0] * 21
-        self._episode_ended = False
-        return ts.restart(np.array([self._state], dtype=np.int32))
+        self._state = np.array([[0.0] * self.observations_size], dtype=np.float32)
+        return ts.restart(self._state)
 
     def _step(self, action):
+        if self._episode_ended:
+            return self.reset()
+
         if type(action) is np.ndarray:
             action = PushAction.from_numpy(action)
 
-        observations, reward, done, info = list(), None, False, {}
-
+        observations, reward, info = list(), None, {}
         info["haptic"] = self.rog.get_haptic_values()
         observations = self.get_observations(action)
         observations = np.asarray([np.hstack(o) for o in observations])
-
         obs_flat = observations.reshape((1, -1))
-        act_flat = action.to_numpy().reshape((1, -1))
-        info["observations_numpy"] = (obs_flat, act_flat)
+        self._state = np.asarray(obs_flat, dtype=np.float32)
 
-        feed = [f[np.newaxis, ...] for f in info["observations_numpy"]]
+        # check the object
+        info["haptic_regressor_feed"] = (obs_flat, action.to_numpy().reshape((1, -1)))
+        feed = [f[np.newaxis, ...] for f in info["haptic_regressor_feed"]]
         y_pred = self.nn(feed, training=False)
+        y_pred = tf.reshape(y_pred, -1)
+
+        # calculate a reward
         y_true = tf.convert_to_tensor([v for v in info["haptic"].values()])
-        reward = 1.0 / (1e-6 + tf.reduce_mean(y_true - y_pred))
-        reward -= self.time_penalty
-        self.time_penalty += 0.1
+        loss = tf.losses.mean_absolute_error(y_true, y_pred)
+        reward = 1.0 / (1e-6 + loss)
+        if reward > self._termination_reward:
+            self._episode_ended = True
 
-        self._episode_ended = bool(abs(reward) < 0.1)
+        self._time_penalty += self._time_penalty_delta
+        reward -= self._time_penalty
 
-        return ts.transition(np.array(observations, dtype=np.float32), reward=reward, discount=1.0)
+        if self._steps > self._termination_steps:
+            self._episode_ended = True
+
+        self._steps += 1
+        if self._episode_ended:
+            return ts.termination(self._state, reward=reward)
+        else:
+            return ts.transition(self._state, reward=reward, discount=1.0)
 
     def action_spec(self):
         return self._action_spec

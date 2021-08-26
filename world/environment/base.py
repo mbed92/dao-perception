@@ -1,15 +1,15 @@
 import time
 from functools import wraps
 
-import gym
 import numpy as np
 import pybullet as p
 import pybullet_data as pd
-from ray.rllib.env import EnvContext
 from scipy.spatial.transform import Rotation as R
 
 from world.action.primitives import PushAction
 from world.environment.objects import RandomObjectsGenerator
+
+GRAVITY = -9.80991
 
 
 def timing(f):
@@ -24,9 +24,6 @@ def timing(f):
     return wrap
 
 
-GRAVITY = -9.80991
-
-
 def pose_on_circle(radius, yaw, height, pos_offset=None):
     x = np.cos(yaw) * radius
     y = np.sin(yaw) * radius
@@ -39,8 +36,8 @@ def pose_on_circle(radius, yaw, height, pos_offset=None):
     return pos, quat
 
 
-class BaseEnv(gym.Env):
-    def __init__(self, config: EnvContext):
+class BaseEnv:
+    def __init__(self, config):
         self.config = config
         self.flags = p.RESET_USE_DEFORMABLE_WORLD
         self.scene = {}
@@ -58,13 +55,11 @@ class BaseEnv(gym.Env):
         self.object = None
 
         # start the simulation
+        self.observations_size = 21
         self.start_sim()
 
         # calculate camera position
         self.setup_camera()
-
-    def seed(self, seed=None):
-        np.random.seed(seed)
 
     def get_observations(self, action: PushAction):
         observations = list()

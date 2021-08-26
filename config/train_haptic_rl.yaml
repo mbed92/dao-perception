@@ -26,11 +26,11 @@ object_spring_stiffness_sigma: 350.0
 object_elastic_stiffness_mean: 700.0
 object_elastic_stiffness_sigma: 350.0
 
-cam_target_pos: [ 0, 0.3, 0.1 ]  # camera settings
-cam_roll: 0
-cam_pitch: 0
-cam_yaw: 0
-cam_distance: 1.5
+cam_target_pos: [ 0.0, 0.0, 1.0 ]  # camera settings
+cam_roll: 0.0
+cam_pitch: 1.57
+cam_yaw: 0.0
+cam_distance: 3.0
 projection_w: 640
 projection_h: 480
 near_plane: 0.01
@@ -44,3 +44,8 @@ dropout: 0.8
 lstm_units: 32
 lstm_stateful: True
 load_path: '/home/mbed/Projects/rl-physnet/scripts/logs_offline'
+
+termination_reward: 10.0 # RL
+time_penalty_init: 0.0
+time_penalty_delta: 0.5
+termination_steps: 30
