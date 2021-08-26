@@ -10,6 +10,12 @@ class PushAction:
     def to_numpy(self):
         return np.asarray([self.yaw, self.force])[np.newaxis, ...]
 
+    @staticmethod
+    def from_numpy(action):
+        yaw = action[0]
+        force = action[1]
+        return PushAction(yaw, force)
+
     def __repr__(self):
         return f"Action():\t" \
                f"yaw={self.yaw}\tforce={self.force}"
