@@ -14,6 +14,7 @@ from tf_agents.train import learner
 from tf_agents.train import triggers
 
 import world
+from utils.text import TextFlag, log
 
 tempdir = os.path.join(tempfile.gettempdir(), "rl")
 plt.ion()
@@ -47,10 +48,10 @@ collect_env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)
 eval_env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)
 env.reset()
 
-print('Observation Spec:')
-print(env.time_step_spec().observation)
-print('Action Spec:')
-print(env.action_spec())
+log(TextFlag.INFO, 'Observation Spec:')
+log(TextFlag.INFO, env.time_step_spec().observation)
+log(TextFlag.INFO, 'Action Spec:')
+log(TextFlag.INFO, env.action_spec())
 
 ## AGENT
 sac = world.sac.agent.SAC(collect_env)
@@ -150,7 +151,7 @@ metrics = get_eval_metrics()
 def log_eval_metrics(step, metrics):
     eval_results = (', ').join(
         '{} = {:.6f}'.format(name, result) for name, result in metrics.items())
-    print('step = {0}: {1}'.format(step, eval_results))
+    log(TextFlag.INFO, 'step = {0}: {1}'.format(step, eval_results))
 
 
 log_eval_metrics(0, metrics)
@@ -176,7 +177,7 @@ for _ in range(num_iterations):
         returns.append(metrics["AverageReturn"])
 
     if log_interval and agent_learner.train_step_numpy % log_interval == 0:
-        print('step = {0}: loss = {1}'.format(agent_learner.train_step_numpy, loss_info.loss.numpy()))
+        log(TextFlag.INFO, 'step = {0}: loss = {1}'.format(agent_learner.train_step_numpy, loss_info.loss.numpy()))
 
     if visualization_on and visualize_interval and agent_learner.train_step_numpy % visualize_interval == 0:
         time_step = eval_env.reset()

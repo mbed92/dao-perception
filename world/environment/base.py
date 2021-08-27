@@ -6,6 +6,7 @@ import pybullet as p
 import pybullet_data as pd
 from scipy.spatial.transform import Rotation as R
 
+from utils.text import TextFlag, log
 from world.action.primitives import PushAction
 from world.environment.objects import RandomObjectsGenerator
 
@@ -18,7 +19,7 @@ def timing(f):
         ts = time.time()
         result = f(*args, **kw)
         te = time.time()
-        print(f'Func: {f.__name__} took: {te - ts} sec')
+        log(TextFlag.INFO, f'Func: {f.__name__} took: {te - ts} sec')
         return result
 
     return wrap
@@ -125,7 +126,7 @@ class BaseEnv:
         try:
             self.object = self.rog.generate_object()
         except ValueError as e:
-            print(e)
+            log(TextFlag.ERROR, e)
 
         p.stepSimulation()
 

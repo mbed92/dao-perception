@@ -1,6 +1,7 @@
 import yaml
 
 import world
+from utils.text import TextFlag, log
 
 NUM_EPISODES = 10
 NUM_ACTIONS = 10
@@ -15,7 +16,7 @@ if __name__ == "__main__":
         for _ in range(NUM_ACTIONS):
             action = world.action.primitives.PushAction.random_sample()
             observations, reward, done, info = myenv.step(action=action)
-            print(info["observations_numpy"])
+            log(TextFlag.INFO, info["observations_numpy"])
 
         myenv.reset()
 

@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from utils.text import TextFlag, log
+
 
 def run(nn, ds, writer, step, prefix, optimizer=None, eta=None):
     is_training = 'train' in prefix
@@ -22,7 +24,7 @@ def run(nn, ds, writer, step, prefix, optimizer=None, eta=None):
         step += 1
 
     # add to the tensorboard
-    print(f'Mean {prefix} loss: {metric_loss.result().numpy()}')
+    log(TextFlag.INFO, f'Mean {prefix} loss: {metric_loss.result().numpy()}')
     with writer.as_default():
         tf.summary.scalar(prefix + metric_loss.name, metric_loss.result().numpy(), step=step)
         if is_training:

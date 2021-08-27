@@ -3,6 +3,8 @@ import os
 import numpy as np
 import pybullet as p
 
+from utils.text import TextFlag, log
+
 YAML_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'config', 'objects.yaml')
 
 
@@ -98,7 +100,7 @@ class RandomObjectsGenerator:
             haptic[Haptic.ELASTIC_STIFFNESS] = norm_elastic
 
         if len(haptic) == 0:
-            print("Create object before checking its haptic properties.")
+            log(TextFlag.ERROR, "Create object before checking its haptic properties.")
 
         return haptic
 

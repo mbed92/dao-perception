@@ -6,6 +6,7 @@ import tensorflow as tf
 import yaml
 
 import world
+from utils.text import TextFlag, log
 
 tf.executing_eagerly()
 ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_online.yaml", 'r'))
@@ -41,7 +42,7 @@ def start(args):
                 gradients = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-            print(loss.numpy())
+            log(TextFlag.INFO, loss.numpy())
             metric_loss.update_state(loss.numpy())
 
         # do each epoch
@@ -51,7 +52,7 @@ def start(args):
         model.reset_states()
 
         # add to the tensorboard
-        print("Episode: {}, mean loss: {}".format(n_ep, metric_loss.result().numpy()))
+        log(TextFlag.INFO, "Episode: {}, mean loss: {}".format(n_ep, metric_loss.result().numpy()))
         with train_writer.as_default():
             tf.summary.scalar(metric_loss.name, metric_loss.result().numpy(), step=n_ep)
             tf.summary.scalar(eta.name, eta.value().numpy(), step=n_ep)

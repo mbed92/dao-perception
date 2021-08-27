@@ -7,6 +7,7 @@ import yaml
 from numpy import asarray, concatenate
 
 import world
+from utils.text import TextFlag, log
 
 ENV_CONFIG = yaml.safe_load(open("../config/gather_data.yaml", 'r'))
 
@@ -23,7 +24,7 @@ def create_dataset(myenv, file, n_episodes, n_actions):
             batch_y.append(asarray([v for v in info["haptic"].values()]))
 
         # dump data after each episode and restart an environment
-        print("Finished episode {}".format(n_ep))
+        log(TextFlag.INFO, "Finished episode {}".format(n_ep))
         dataset['observations'].append(concatenate(batch_obs, 0))
         dataset['actions'].append(concatenate(batch_act, 0))
         dataset['y'].append(asarray(batch_y))
