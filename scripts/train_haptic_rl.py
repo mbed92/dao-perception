@@ -16,36 +16,28 @@ import world
 
 tempdir = os.path.join(tempfile.gettempdir(), "rl")
 
-env_name = "MinitaurBulletEnv-v0"  # @param {type:"string"}
-
-# Use "num_iterations = 1e6" for better results (2 hrs)
-# 1e5 is just so this doesn't take too long (1 hr)
-num_iterations = 100000  # @param {type:"integer"}
-initial_collect_steps = 10  # @param {type:"integer"}
-collect_steps_per_iteration = 1  # @param {type:"integer"}
-replay_buffer_capacity = 10  # @param {type:"integer"}
-batch_size = 16  # @param {type:"integer"}
-critic_learning_rate = 3e-4  # @param {type:"number"}
-actor_learning_rate = 3e-4  # @param {type:"number"}
-alpha_learning_rate = 3e-4  # @param {type:"number"}
-target_update_tau = 0.005  # @param {type:"number"}
-target_update_period = 1  # @param {type:"number"}
-gamma = 0.99  # @param {type:"number"}
-reward_scale_factor = 1.0  # @param {type:"number"}
+## PARAMS
+num_iterations = 100000
+initial_collect_steps = 10
+collect_steps_per_iteration = 1
+replay_buffer_capacity = 100
+batch_size = 16
+critic_learning_rate = 3e-4
+actor_learning_rate = 3e-4
+alpha_learning_rate = 3e-4
+target_update_tau = 0.005
+target_update_period = 1
+gamma = 0.99
+reward_scale_factor = 1.0
 actor_fc_layer_params = (256, 256)
 critic_joint_fc_layer_params = (256, 256)
-log_interval = 100  # @param {type:"integer"}
-num_eval_episodes = 5  # @param {type:"integer"}
-eval_interval = 1000  # @param {type:"integer"}
-policy_save_interval = 100  # @param {type:"integer"}
+log_interval = 100
+num_eval_episodes = 5
+eval_interval = 1000
+policy_save_interval = 100
 visualize_interval = 10
 
 ## ENVIRONMENT
-# env = suite_pybullet.load(env_name)
-# collect_env = suite_pybullet.load(env_name)
-# eval_env = suite_pybullet.load(env_name)
-# env.reset()
-
 ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_rl.yaml", 'r'))
 env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)
 collect_env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)

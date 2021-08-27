@@ -27,8 +27,8 @@ object_elastic_stiffness_mean: 700.0
 object_elastic_stiffness_sigma: 350.0
 
 cam_target_pos: [ 0.0, 0.0, 1.0 ]  # camera settings
-cam_roll: 0.0
-cam_pitch: 1.57
+cam_roll: 0.0 # deg
+cam_pitch: -90.0
 cam_yaw: 0.0
 cam_distance: 3.0
 projection_w: 640
