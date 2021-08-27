@@ -53,7 +53,7 @@ class RLPusherEnvGenerator(py_environment.PyEnvironment, BaseEnv):
             name='push')
 
         self._observation_spec = array_spec.BoundedArraySpec(
-            shape=(1,self.observations_size),
+            shape=(1, self.observations_size),
             dtype=np.float32,
             minimum=-10.0,
             maximum=10.0,
@@ -86,7 +86,7 @@ class RLPusherEnvGenerator(py_environment.PyEnvironment, BaseEnv):
         if not self.nn.stateful_lstm:
             self.nn.reset_states()
 
-        self._time_penalty = 0.0
+        self._steps = 0
         self._episode_ended = False
         self._state = np.array([[0.0] * self.observations_size], dtype=np.float32)
         return ts.restart(self._state)
@@ -115,13 +115,8 @@ class RLPusherEnvGenerator(py_environment.PyEnvironment, BaseEnv):
         y_true = tf.convert_to_tensor([v for v in info["haptic"].values()])
         loss = tf.losses.mean_absolute_error(y_true, y_pred)
         reward = 1.0 / (1e-6 + loss)
-        if reward > self._termination_reward:
-            self._episode_ended = True
-
-        self._time_penalty += self._time_penalty_delta
-        reward -= self._time_penalty
-
-        if self._steps > self._termination_steps:
+        reward = reward - self._steps * self._time_penalty_delta
+        if reward > self._termination_reward or self._steps > self._termination_steps:
             self._episode_ended = True
 
         self._steps += 1

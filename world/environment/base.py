@@ -133,9 +133,6 @@ class BaseEnv:
         p.disconnect()
 
     def setup_scene(self):
-        # plane_id = p.loadURDF("plane.urdf", self.config["plane_position"], self.config["plane_quaternion"])
-        # plane_id = p.createMultiBody(baseCollisionShapeIndex=p.createCollisionShape(shapeType=p.GEOM_PLANE), basePosition=[0, 0, 0.1])
-        # p.createCollisionShape(p.GEOM_PLANE)
         plane_id = p.createMultiBody(p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=[100, 100, 0.1]), 0)
         p.changeDynamics(bodyUniqueId=plane_id, linkIndex=-1, mass=0, restitution=1.0,
                          lateralFriction=1.0, rollingFriction=1.0, spinningFriction=1.0,
@@ -191,6 +188,9 @@ class BaseEnv:
 
         # make spherical joint compliant
         p.changeDynamics(pusher_id, 2, linearDamping=1e-5, angularDamping=1e-5, jointDamping=1e-5)
+
+        # make prismatic joint more springy
+        p.changeDynamics(pusher_id, 3, linearDamping=1.0, angularDamping=1.0, jointDamping=1.0)
 
         # attach body to the fixed position
         p.createConstraint(parentBodyUniqueId=self.scene["plane"],

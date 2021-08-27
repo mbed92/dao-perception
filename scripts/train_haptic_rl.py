@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+import matplotlib.pyplot as plt
 import reverb
 import yaml
 from tf_agents.metrics import py_metrics
@@ -15,6 +16,7 @@ from tf_agents.train import triggers
 import world
 
 tempdir = os.path.join(tempfile.gettempdir(), "rl")
+plt.ion()
 
 ## PARAMS
 num_iterations = 100000
@@ -35,6 +37,7 @@ log_interval = 100
 num_eval_episodes = 5
 eval_interval = 1000
 policy_save_interval = 100
+visualization_on = False
 visualize_interval = 10
 
 ## ENVIRONMENT
@@ -160,11 +163,6 @@ tf_agent.train_step_counter.assign(0)
 avg_return = get_eval_metrics()["AverageReturn"]
 returns = [avg_return]
 
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots()
-plt.ion()
-
 for _ in range(num_iterations):
 
     # Training.
@@ -180,8 +178,9 @@ for _ in range(num_iterations):
     if log_interval and agent_learner.train_step_numpy % log_interval == 0:
         print('step = {0}: loss = {1}'.format(agent_learner.train_step_numpy, loss_info.loss.numpy()))
 
-    if visualize_interval and agent_learner.train_step_numpy % visualize_interval == 0:
+    if visualization_on and visualize_interval and agent_learner.train_step_numpy % visualize_interval == 0:
         time_step = eval_env.reset()
+        fig, ax = plt.subplots()
         while not time_step.is_last():
             action_step = eval_actor.policy.action(time_step)
             time_step = eval_env.step(action_step.action)
@@ -189,6 +188,7 @@ for _ in range(num_iterations):
             plt.imshow(img)
             plt.show(block=False)
             plt.pause(0.00001)
+        plt.close(fig)
 
 rb_observer.close()
 reverb_server.stop()

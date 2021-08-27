@@ -134,4 +134,5 @@ class RandomObjectsGenerator:
                          mass=self.mass, restitution=self.restitution,
                          spinningFriction=self.friction,
                          rollingFriction=self.friction)
+
         return obj_id
