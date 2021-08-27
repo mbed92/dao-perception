@@ -8,7 +8,7 @@ NUM_ACTIONS = 10
 ENV_CONFIG = yaml.safe_load(open("../config/demo.yaml", 'r'))
 
 if __name__ == "__main__":
-    myenv = world.environment.pusher.PusherEnvGenerator(ENV_CONFIG)
+    myenv = world.environment.pusher.PusherEnvDemo(ENV_CONFIG)
     myenv.rog.object_types = ['cube.obj']
     myenv.reset()
 

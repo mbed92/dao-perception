@@ -33,7 +33,7 @@ def create_dataset(myenv, file, n_episodes, n_actions):
 
 
 def start(args):
-    myenv = world.environment.pusher.PusherEnvGenerator(ENV_CONFIG)
+    myenv = world.environment.pusher.PusherEnvDemo(ENV_CONFIG)
 
     # create folder for data
     os.makedirs(args.data_path, exist_ok=True)

@@ -43,9 +43,9 @@ visualize_interval = 10
 
 ## ENVIRONMENT
 ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_rl.yaml", 'r'))
-env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)
-collect_env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)
-eval_env = world.environment.pusher.RLPusherEnvGenerator(ENV_CONFIG)
+env = world.environment.pusher.RLPusherEnvHapticProperties(ENV_CONFIG)
+collect_env = world.environment.pusher.RLPusherEnvHapticProperties(ENV_CONFIG)
+eval_env = world.environment.pusher.RLPusherEnvHapticProperties(ENV_CONFIG)
 env.reset()
 
 log(TextFlag.INFO, 'Observation Spec:')

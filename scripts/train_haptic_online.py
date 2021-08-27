@@ -13,7 +13,7 @@ ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_online.yaml", 'r'))
 
 
 def start(args):
-    myenv = world.environment.pusher.PusherEnvGenerator(ENV_CONFIG)
+    myenv = world.environment.pusher.PusherEnvDemo(ENV_CONFIG)
     model = myenv.get_model(ENV_CONFIG)
 
     # setup an optimization

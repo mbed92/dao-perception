@@ -10,7 +10,7 @@ from world.environment.base import BaseEnv
 from world.physics.phys_net import HapticRegressor
 
 
-class PusherEnvGenerator(BaseEnv):
+class PusherEnvDemo(BaseEnv):
     def __init__(self, config):
         super().__init__(config)
 
@@ -41,7 +41,7 @@ class PusherEnvGenerator(BaseEnv):
         self.reset_sim()
 
 
-class RLPusherEnvGenerator(py_environment.PyEnvironment, BaseEnv):
+class RLPusherEnvHapticProperties(py_environment.PyEnvironment, BaseEnv):
     def __init__(self, config):
         py_environment.PyEnvironment.__init__(self)
         BaseEnv.__init__(self, config)
@@ -107,7 +107,12 @@ class RLPusherEnvGenerator(py_environment.PyEnvironment, BaseEnv):
         self._state = np.asarray(obs_flat, dtype=np.float32)
 
         # calculate a reward
-        reward = self.get_reward(self._state, action, y_true=info["haptic"])
+        reward = haptic_reward_with_time_penalty(state=self._state,
+                                                 action=action,
+                                                 y_true=info["haptic"],
+                                                 haptic_regressor=self.nn,
+                                                 steps=self._steps,
+                                                 time_penalty_delta=self._time_penalty_delta)
 
         # terminate if needed
         if reward > self._termination_reward or self._steps > self._termination_steps:
@@ -120,26 +125,33 @@ class RLPusherEnvGenerator(py_environment.PyEnvironment, BaseEnv):
         else:
             return ts.transition(self._state, reward=reward, discount=1.0)
 
-    def get_reward(self, state, action, **kwargs):
-        feed = (state, action.to_numpy().reshape((1, -1)))
-        feed = [f[np.newaxis, ...] for f in feed]
-        y_pred = self.nn(feed, training=False)
-        y_pred = tf.reshape(y_pred, -1)
-
-        reward = 0.0
-        if "y_true" in kwargs.keys():
-            y_true = tf.convert_to_tensor([v for v in kwargs["y_true"].values()])
-            loss = tf.losses.mean_absolute_error(y_true, y_pred)
-            reward = 1.0 / (1e-6 + loss)
-            reward = reward - self._steps * self._time_penalty_delta
-
-        else:
-            log(TextFlag.WARNING, f"Cannot calculate reward. Equals: {reward}")
-
-        return reward
-
     def action_spec(self):
         return self._action_spec
 
     def observation_spec(self):
         return self._observation_spec
+
+
+# REWARD FUNCTIONS
+def haptic_reward_with_time_penalty(state, action, **kwargs):
+    assert "haptic_regressor" in kwargs.keys()
+    assert "y_true" in kwargs.keys()
+    assert "steps" in kwargs.keys()
+    assert "time_penalty_delta" in kwargs.keys()
+
+    feed = (state, action.to_numpy().reshape((1, -1)))
+    feed = [f[np.newaxis, ...] for f in feed]
+    y_pred = kwargs["haptic_regressor"](feed, training=False)
+    y_pred = tf.reshape(y_pred, -1)
+
+    reward = 0.0
+    if "y_true" in kwargs.keys():
+        y_true = tf.convert_to_tensor([v for v in kwargs["y_true"].values()])
+        loss = tf.losses.mean_absolute_error(y_true, y_pred)
+        reward = 1.0 / (1e-6 + loss)
+        reward = reward - kwargs["steps"] * kwargs["time_penalty_delta"]
+
+    else:
+        log(TextFlag.WARNING, f"Cannot calculate reward. Equals: {reward}")
+
+    return reward
