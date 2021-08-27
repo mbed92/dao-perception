@@ -133,8 +133,14 @@ class BaseEnv:
         p.disconnect()
 
     def setup_scene(self):
-        plane_id = p.loadURDF("plane.urdf", self.config["plane_position"], self.config["plane_quaternion"])
-        p.changeDynamics(bodyUniqueId=plane_id, linkIndex=-1, mass=0, restitution=1.0, lateralFriction=10.0)
+        # plane_id = p.loadURDF("plane.urdf", self.config["plane_position"], self.config["plane_quaternion"])
+        # plane_id = p.createMultiBody(baseCollisionShapeIndex=p.createCollisionShape(shapeType=p.GEOM_PLANE), basePosition=[0, 0, 0.1])
+        # p.createCollisionShape(p.GEOM_PLANE)
+        plane_id = p.createMultiBody(p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=[100, 100, 0.1]), 0)
+        p.changeDynamics(bodyUniqueId=plane_id, linkIndex=-1, mass=0, restitution=1.0,
+                         lateralFriction=1.0, rollingFriction=1.0, spinningFriction=1.0,
+                         contactDamping=-1, contactStiffness=-1)
+        p.changeVisualShape(objectUniqueId=plane_id, linkIndex=-1, rgbaColor=[0.3, 0.3, 0.3, 1])
         return plane_id
 
     def setup_pusher(self, object_pos=None, action: PushAction = None):
