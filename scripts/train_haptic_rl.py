@@ -185,7 +185,7 @@ for _ in range(num_iterations):
         while not time_step.is_last():
             action_step = eval_actor.policy.action(time_step)
             time_step = eval_env.step(action_step.action)
-            img = eval_env.get_camera_image()
+            img = eval_env.get_color_image()
             plt.imshow(img)
             plt.show(block=False)
             plt.pause(0.00001)

@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import pybullet as p
 import tensorflow as tf
@@ -33,7 +34,7 @@ class PusherEnvDemo(BaseEnv):
             p.removeBody(self.scene["pusher"])
 
         state_before = p.getBasePositionAndOrientation(self.object)
-        self.scene["pusher"] = self.setup_pusher(object_pos=state_before[0], action=action)
+        self.scene["pusher"], _, _ = self.setup_pusher(object_pos=state_before[0], action=action)
         observations.append(state_before)
 
         if action is not None:
@@ -121,7 +122,7 @@ class RLPusherEnvHapticProperties(py_environment.PyEnvironment, BaseEnv):
             p.removeBody(self.scene["pusher"])
 
         state_before = p.getBasePositionAndOrientation(self.object)
-        self.scene["pusher"] = self.setup_pusher(object_pos=state_before[0], action=action)
+        self.scene["pusher"], _, _ = self.setup_pusher(object_pos=state_before[0], action=action)
         observations.append(state_before)
 
         if action is not None:
@@ -204,7 +205,7 @@ class RLPusherEnvPushNetFromImages(py_environment.PyEnvironment, BaseEnv):
         self._steps = 0
         self._observations_size = 21
 
-        # define specs
+        # define specs POSES
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(2,),
             dtype=np.float32,
@@ -221,6 +222,19 @@ class RLPusherEnvPushNetFromImages(py_environment.PyEnvironment, BaseEnv):
 
         self._state = np.array([[0.0] * self._observations_size], dtype=np.float32)
 
+    def get_masked_depth(self):
+        depth_before = self.get_depth_image()
+        color_before = self.get_color_image(raw=True)[..., :3]
+        mask_before = get_object_mask(color_before,
+                                      self.config["object_color_threshold_low"],
+                                      self.config["object_color_threshold_high"])
+        return depth_before * mask_before
+
+    def place_camera_in_front_of_object(self, cam_dist=0.7, roll=0.0, pitch=-20, yaw=0.0):
+        target_point, _ = p.getBasePositionAndOrientation(self.object)
+        self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(np.asarray(target_point), cam_dist,
+                                                              yaw + 90, pitch, roll, 2)
+
     def get_observations(self, action: PushAction):
         observations = list()
 
@@ -228,33 +242,30 @@ class RLPusherEnvPushNetFromImages(py_environment.PyEnvironment, BaseEnv):
         if self.scene["pusher"] is not None:
             p.removeBody(self.scene["pusher"])
 
-        # TODO
         state_before = p.getBasePositionAndOrientation(self.object)
-        # depth_before = self.get_depth_image_from_pusher_view()
         observations.append(state_before)
-        self.scene["pusher"] = self.setup_pusher(object_pos=state_before[0], action=action)
+        self.scene["pusher"], _, pusher_orientation_quaternion = self.setup_pusher(object_pos=state_before[0],
+                                                                                   action=action)
 
-        # import matplotlib.pyplot as plt
-        # plt.imshow(depth_before)
-        # plt.show()
+        # reposition a camera
+        yaw = np.rad2deg(p.getEulerFromQuaternion(pusher_orientation_quaternion)[-1])
+        self.place_camera_in_front_of_object(cam_dist=self.config["pusher_radius"] - 0.2, yaw=yaw)
 
+        # get a masked depth image
+        masked_depth_before = self.get_masked_depth()
+        observations.append(masked_depth_before)
+
+        # apply a force on a pusher object
         if action is not None:
-            # apply force on a pusher object
             self.step_sim_with_force(action)
 
-            state_after = p.getBasePositionAndOrientation(self.object)
-            # depth_after = self.get_depth_image_from_pusher_view()
-            observations.append(state_after)
-            # plt.imshow(depth_after)
-            # plt.show()
+            # clear a view from the camera
+            p.removeBody(self.scene["pusher"])
+            self.scene["pusher"] = None
 
-            # wait more and get new observation
-            self.step_sim_with_force(action)
-            state_post_after = p.getBasePositionAndOrientation(self.object)
-            observations.append(state_post_after)
+            masked_depth_after = self.get_masked_depth()
+            observations.append(masked_depth_after)
 
-        observations = np.asarray([np.hstack(o) for o in observations])
-        observations = observations.reshape((1, -1))
         return observations
 
     def _reset(self):
@@ -296,6 +307,21 @@ class RLPusherEnvPushNetFromImages(py_environment.PyEnvironment, BaseEnv):
 
     def observation_spec(self):
         return self._observation_spec
+
+
+def get_object_mask(img, color_bgr_low, color_bgr_high, k=np.ones((5, 5))):
+    assert type(img) is np.ndarray and len(img.shape) == 3 and img.shape[-1] == 3
+    assert type(color_bgr_low) in [tuple, list] and len(color_bgr_low) == 3
+    assert type(color_bgr_high) in [tuple, list] and len(color_bgr_high) == 3
+    assert all([c >= 0] for c in color_bgr_low)
+    assert all([c >= 0] for c in color_bgr_high)
+    assert all([high > low for low, high in zip(color_bgr_low, color_bgr_high)])
+
+    img_cpy = cv2.medianBlur(img, 3)
+    mask = cv2.inRange(img_cpy, np.asarray(color_bgr_low), np.asarray(color_bgr_high))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, k)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, k)
+    return mask[..., np.newaxis]
 
 
 # REWARD FUNCTIONS

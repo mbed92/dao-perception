@@ -27,7 +27,8 @@ class RandomObjectsGenerator:
                  friction_mean=None, friction_sigma=None,
                  restitution_mean=None, restitution_sigma=None,
                  spring_stiffness_mean=None, spring_stiffness_sigma=None,
-                 elastic_stiffness_mean=None, elastic_stiffness_sigma=None):
+                 elastic_stiffness_mean=None, elastic_stiffness_sigma=None,
+                 object_rgba_color=None):
 
         self.position = [0.0, 0.0, 0.1] if position is None else position
         self.orientation = [0, 0, 0, 1] if orientation is None else orientation
@@ -43,6 +44,7 @@ class RandomObjectsGenerator:
         self.spring_stiffness_sigma = 200.0 if spring_stiffness_sigma is None else spring_stiffness_sigma
         self.elastic_stiffness_mean = 400.0 if elastic_stiffness_mean is None else elastic_stiffness_mean
         self.elastic_stiffness_sigma = 200.0 if elastic_stiffness_sigma is None else elastic_stiffness_sigma
+        self.object_rgba_color = [1, 0, 0, 1] if object_rgba_color is None else object_rgba_color
 
         assert len(self.position) == 3
         assert len(self.orientation) == 4
@@ -58,6 +60,7 @@ class RandomObjectsGenerator:
         assert type(self.spring_stiffness_sigma) is float
         assert type(self.elastic_stiffness_mean) is float
         assert type(self.elastic_stiffness_sigma) is float
+        assert len(self.object_rgba_color) == 4
         self.object_types = ["cube.obj"]
 
         # physical properies
@@ -136,5 +139,7 @@ class RandomObjectsGenerator:
                          mass=self.mass, restitution=self.restitution,
                          spinningFriction=self.friction,
                          rollingFriction=self.friction)
+
+        p.changeVisualShape(objectUniqueId=obj_id, linkIndex=-1, rgbaColor=self.object_rgba_color)
 
         return obj_id

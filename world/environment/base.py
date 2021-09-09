@@ -51,7 +51,8 @@ class BaseEnv:
                                           self.config["object_spring_stiffness_mean"],
                                           self.config["object_spring_stiffness_sigma"],
                                           self.config["object_elastic_stiffness_mean"],
-                                          self.config["object_elastic_stiffness_sigma"])
+                                          self.config["object_elastic_stiffness_sigma"],
+                                          self.config["object_pybullet_rgba_color"])
 
         self.object = None
 
@@ -184,7 +185,7 @@ class BaseEnv:
                            childFrameOrientation=[0, 0, 0, 1]
                            )
 
-        return pusher_id
+        return pusher_id, base_position, base_orientation
 
     def setup_camera(self):
         up_axis_idx = 2
@@ -202,7 +203,7 @@ class BaseEnv:
                                                              self.config["near_plane"],
                                                              self.config["far_plane"])
 
-    def get_camera_image(self, color=True, raw=False):
+    def get_color_image(self, color=True, raw=False):
         img_arr = p.getCameraImage(self.config["projection_w"],
                                    self.config["projection_h"],
                                    self.viewMatrix,
@@ -219,26 +220,6 @@ class BaseEnv:
 
         return np_img_arr
 
-    def get_depth_image_from_pusher_view(self):
-        # update view matrix
-        up_axis_idx = 2
-
-        target_point, target_orientation = p.getBasePositionAndOrientation(self.object)
-        _, pusher_orientation = p.getBasePositionAndOrientation(self.scene["pusher"])
-        yaw = np.asarray(p.getEulerFromQuaternion(pusher_orientation))[-1]
-        euler_yaw = R.from_euler('z', yaw).as_euler('xyz', degrees=True)
-        euler = np.asarray([0.0, -45.0, 0.0]) + euler_yaw
-        cam_dist = 2.0
-
-        self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(np.asarray(target_point),
-                                                              cam_dist,
-                                                              euler[2],
-                                                              euler[1],
-                                                              euler[0],
-                                                              up_axis_idx)
-
-        return self.get_camera_image()
-
     def get_depth_image(self):
         img_arr = p.getCameraImage(self.config["projection_w"],
                                    self.config["projection_h"],
@@ -250,4 +231,4 @@ class BaseEnv:
             (self.config["far_plane"] - (self.config["far_plane"] -
                                          self.config["near_plane"]) * d)
 
-        return d
+        return d[..., np.newaxis]  # add number of channels
