@@ -56,35 +56,13 @@ class BaseEnv:
         self.object = None
 
         # start the simulation
-        self.observations_size = 21
         self.start_sim()
 
         # calculate camera position
         self.setup_camera()
 
     def get_observations(self, action: PushAction):
-        observations = list()
-
-        # set new position of the pusher w. r. t. the object
-        if self.scene["pusher"] is not None:
-            p.removeBody(self.scene["pusher"])
-
-        state_before = p.getBasePositionAndOrientation(self.object)
-        self.scene["pusher"] = self.setup_pusher(object_pos=state_before[0], action=action)
-        observations.append(state_before)
-
-        if action is not None:
-            # apply force on a pusher object
-            self.step_sim_with_force(action)
-            state_after = p.getBasePositionAndOrientation(self.object)
-            observations.append(state_after)
-
-            # wait more and get new observation
-            self.step_sim_with_force(action)
-            state_post_after = p.getBasePositionAndOrientation(self.object)
-            observations.append(state_post_after)
-
-        return observations
+        raise NotImplementedError("Method needs to be implemented.")
 
     def step_sim_with_force(self, action: PushAction):
         def step():
@@ -240,3 +218,36 @@ class BaseEnv:
             np_img_arr = np_img_arr * (1. / 255.)
 
         return np_img_arr
+
+    def get_depth_image_from_pusher_view(self):
+        # update view matrix
+        up_axis_idx = 2
+
+        target_point, target_orientation = p.getBasePositionAndOrientation(self.object)
+        _, pusher_orientation = p.getBasePositionAndOrientation(self.scene["pusher"])
+        yaw = np.asarray(p.getEulerFromQuaternion(pusher_orientation))[-1]
+        euler_yaw = R.from_euler('z', yaw).as_euler('xyz', degrees=True)
+        euler = np.asarray([0.0, -45.0, 0.0]) + euler_yaw
+        cam_dist = 2.0
+
+        self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(np.asarray(target_point),
+                                                              cam_dist,
+                                                              euler[2],
+                                                              euler[1],
+                                                              euler[0],
+                                                              up_axis_idx)
+
+        return self.get_camera_image()
+
+    def get_depth_image(self):
+        img_arr = p.getCameraImage(self.config["projection_w"],
+                                   self.config["projection_h"],
+                                   self.viewMatrix,
+                                   self.projectionMatrix)
+
+        d = img_arr[3].astype(np.float32)
+        d = self.config["far_plane"] * self.config["near_plane"] / \
+            (self.config["far_plane"] - (self.config["far_plane"] -
+                                         self.config["near_plane"]) * d)
+
+        return d
