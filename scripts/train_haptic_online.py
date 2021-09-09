@@ -42,7 +42,7 @@ def start(args):
                 gradients = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-            log(TextFlag.INFO, loss.numpy())
+            log(TextFlag.INFO, f"Haptic loss: {loss.numpy()}")
             metric_loss.update_state(loss.numpy())
 
         # do each epoch

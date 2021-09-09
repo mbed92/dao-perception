@@ -21,10 +21,10 @@ plt.ion()
 
 ## PARAMS
 num_iterations = 100000
-initial_collect_steps = 10
+initial_collect_steps = 1000
 collect_steps_per_iteration = 1
 replay_buffer_capacity = 100
-batch_size = 16
+batch_size = 256
 critic_learning_rate = 3e-4
 actor_learning_rate = 3e-4
 alpha_learning_rate = 3e-4
@@ -35,10 +35,10 @@ reward_scale_factor = 1.0
 actor_fc_layer_params = (256, 256)
 critic_joint_fc_layer_params = (256, 256)
 log_interval = 100
-num_eval_episodes = 5
+num_eval_episodes = 20
 eval_interval = 1000
-policy_save_interval = 100
-visualization_on = False
+policy_save_interval = 5000
+visualization_on = True
 visualize_interval = 10
 
 ## ENVIRONMENT
@@ -180,6 +180,7 @@ for _ in range(num_iterations):
         log(TextFlag.INFO, 'step = {0}: loss = {1}'.format(agent_learner.train_step_numpy, loss_info.loss.numpy()))
 
     if visualization_on and visualize_interval and agent_learner.train_step_numpy % visualize_interval == 0:
+        log(TextFlag.WARNING, "Visualization on")
         time_step = eval_env.reset()
         fig, ax = plt.subplots()
         while not time_step.is_last():
@@ -193,3 +194,4 @@ for _ in range(num_iterations):
 
 rb_observer.close()
 reverb_server.stop()
+
