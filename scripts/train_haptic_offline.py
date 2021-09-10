@@ -12,10 +12,11 @@ ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_offline.yaml", 'r'))
 
 
 def start(args):
-    model = world.environment.pusher.PusherEnvDemo(ENV_CONFIG).get_model(ENV_CONFIG)
+    model = world.environment.pusher_haptic.PusherHapticProperties(ENV_CONFIG).get_model(ENV_CONFIG)
 
     # load datasets
-    train_ds, val_ds = utils.dataset.load(args.dataset_train, batch_size=args.batch_size, split_ratio=args.split_train_ratio)
+    train_ds, val_ds = utils.dataset.load(args.dataset_train, batch_size=args.batch_size,
+                                          split_ratio=args.split_train_ratio)
     test_ds = utils.dataset.load(args.dataset_train, batch_size=args.batch_size)
 
     # setup an optimization

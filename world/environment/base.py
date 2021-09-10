@@ -8,7 +8,7 @@ from scipy.spatial.transform import Rotation as R
 
 from utils.text import TextFlag, log
 from world.action.primitives import PushAction
-from world.environment.objects import RandomObjectsGenerator
+from world.environment.random_object_generator import RandomObjectsGenerator
 
 GRAVITY = -9.80991
 

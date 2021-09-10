@@ -43,9 +43,9 @@ visualize_interval = 10
 
 ## ENVIRONMENT
 ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_rl.yaml", 'r'))
-env = world.environment.pusher.RLPusherEnvPushNetFromImages(ENV_CONFIG)
-collect_env = world.environment.pusher.RLPusherEnvPushNetFromImages(ENV_CONFIG)
-eval_env = world.environment.pusher.RLPusherEnvPushNetFromImages(ENV_CONFIG)
+env = world.environment.pusher_haptic_depth.PusherHapticWithDepth(ENV_CONFIG)
+collect_env = world.environment.pusher_haptic_depth.PusherHapticWithDepth(ENV_CONFIG)
+eval_env = world.environment.pusher_haptic_depth.PusherHapticWithDepth(ENV_CONFIG)
 env.reset()
 
 log(TextFlag.INFO, 'Observation Spec:')
@@ -194,4 +194,3 @@ for _ in range(num_iterations):
 
 rb_observer.close()
 reverb_server.stop()
-
