@@ -48,7 +48,7 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
             shape=(2,),
             dtype=np.float32,
             minimum=np.array([-np.pi, 5.0]),
-            maximum=np.array([np.pi, 15.0]),
+            maximum=np.array([np.pi, 20.0]),
             name='push')
 
         self._observation_spec = array_spec.BoundedArraySpec(
@@ -151,7 +151,17 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         info["haptic"] = self.rog.get_haptic_values()
         observations = self.get_observations(action)
         self._observations_size = observations.shape
-        self._state = np.asarray(observations, dtype=np.float32)
+
+        if self.config["DEBUG"]:
+            log(TextFlag.INFO,
+                f"step: {self._steps}\taction: {action}\t observations: {observations.shape}\t"
+                f"isNaN: {np.isnan(observations).any()}\tisInf: {np.isinf(observations).any()}\t")
+
+        if not (np.isnan(observations).any() or np.isinf(observations).any()):
+            self._state = np.asarray(observations, dtype=np.float32)
+        else:
+            log(TextFlag.WARNING, "state is NAN of INF!")
+            self._reset()
 
         # calculate a reward
         reward, haptic_net_gradients, loss = reward_from_haptic_net(state=self._state,
@@ -173,11 +183,6 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         if reward > self._termination_reward or self._steps > self._termination_steps:
             self._episode_ended = True
 
-        if self.config["DEBUG"]:
-            log(TextFlag.INFO, f"reward: {reward}\tstep: {self._steps}\taction: {action}\t state: {self._state.shape}\t"
-                               f"isNaN: {np.isnan(self._state).any()}\tisInf: {np.isinf(self._state).any()}\t"
-                               f"gradients len: {len(self._gradients)}")
-
         # return a result
         self._steps += 1
         if self._episode_ended:
@@ -193,20 +198,26 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
                               lstm_units=self.config["lstm_units"],
                               stateful_lstm=self.config["lstm_stateful"])
 
+        # initialize a model
+        mock_action = PushAction.random_sample(10).to_numpy()
+        feed = (self._state, np.tile(mock_action[np.newaxis, ...], [1, 2, 1]))
+        model(feed, training=True)
+
+        # learning rate
         eta = tf.Variable(float(self.config["lr"]))
         eta_value = tf.keras.optimizers.schedules.ExponentialDecay(float(self.config["lr"]),
                                                                    float(self.config["lr_decay_steps"]),
                                                                    float(self.config["lr_decay_rate"]))
         eta.assign(eta_value(0))
 
+        # create optimizer
         optimizer = tf.keras.optimizers.Adam(eta)
-
         os.makedirs(self.config["save_path"], exist_ok=True)
         ckpt = tf.train.Checkpoint(optimizer=optimizer, model=model)
         ckpt_man = tf.train.CheckpointManager(ckpt, self.config["save_path"], max_to_keep=10)
 
+        # add a metric writer
         metric_loss = tf.keras.metrics.Mean(name="MeanLoss")
-
         writer = tf.summary.create_file_writer(os.path.join(self.config["save_path"], "haptic_net_train"))
 
         return model, eta, eta_value, optimizer, ckpt_man, metric_loss, writer

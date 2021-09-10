@@ -33,7 +33,9 @@ def reward_from_haptic_net(state, action, **kwargs):
     assert "model" in kwargs.keys()
 
     feed = (state, np.tile(action[np.newaxis, ...], [1, 2, 1]))
-    with tf.GradientTape() as tape:
+    with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
+        tape.watch(kwargs["model"].variables)
+
         y_pred = kwargs["model"](feed, training=True)
         y_true = tf.convert_to_tensor([v for v in kwargs["y_true"].values()])
         loss_no_reg = tf.reduce_mean(tf.keras.losses.mean_squared_error(y_true=y_true, y_pred=y_pred))

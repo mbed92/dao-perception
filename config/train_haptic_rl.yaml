@@ -57,4 +57,4 @@ termination_reward: 100.0 # RL
 time_discount: 0.99
 termination_steps: 20
 
-DEBUG: False
+DEBUG: True

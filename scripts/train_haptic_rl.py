@@ -21,7 +21,7 @@ plt.ion()
 
 ## PARAMS
 num_iterations = 100000
-initial_collect_steps = 100
+initial_collect_steps = 1
 collect_steps_per_iteration = 1
 replay_buffer_capacity = 100
 batch_size = 256
@@ -35,10 +35,10 @@ reward_scale_factor = 1.0
 actor_fc_layer_params = (256, 256)
 critic_joint_fc_layer_params = (256, 256)
 log_interval = 100
-num_eval_episodes = 20
+num_eval_episodes = 1
 eval_interval = 1000
 policy_save_interval = 5000
-visualization_on = True
+visualization_on = False
 visualize_interval = 10
 
 
