@@ -8,6 +8,7 @@ from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
+from utils.text import TextFlag, log
 from world.action.primitives import PushAction
 from world.environment.base import BaseEnv
 from world.environment.rewards import reward_train_predictive_model
@@ -35,8 +36,7 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         BaseEnv.__init__(self, config)
 
         self._episode_ended = False
-        self._time_penalty = config["time_penalty_init"]
-        self._time_penalty_delta = config["time_penalty_delta"]
+        self._time_discount = config["time_discount"]
         self._termination_reward = config["termination_reward"]
         self._termination_steps = config["termination_steps"]
         self._steps = 0
@@ -126,8 +126,6 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
                                                action=action.to_numpy(),
                                                model=self.predictive_model,
                                                y_true=info["haptic"],
-                                               steps=self._steps,
-                                               time_penalty_delta=self._time_penalty_delta,
                                                eta=self.eta,
                                                eta_value=self.eta_value,
                                                optimizer=self.optimizer,
@@ -137,12 +135,16 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         if reward > self._termination_reward or self._steps > self._termination_steps:
             self._episode_ended = True
 
+        if self.config["DEBUG"]:
+            log(TextFlag.INFO, f"reward: {reward}\tstep: {self._steps}\taction: {action}\t state: {self._state.shape}\t"
+                               f"isNaN: {np.isnan(self._state).any()}\tisInf: {np.isinf(self._state).any()}\t")
+
         # return a result
         self._steps += 1
         if self._episode_ended:
             return ts.termination(self._state, reward=reward)
         else:
-            return ts.transition(self._state, reward=reward, discount=1.0)
+            return ts.transition(self._state, reward=reward, discount=self._time_discount)
 
     def _setup_predictive_model(self):
         model = CNNClassifier(batch_size=self.config["batch_size"],

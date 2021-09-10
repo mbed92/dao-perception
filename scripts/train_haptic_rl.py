@@ -41,6 +41,7 @@ policy_save_interval = 5000
 visualization_on = True
 visualize_interval = 10
 
+
 ## ENVIRONMENT
 ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_rl.yaml", 'r'))
 env = world.environment.pusher_haptic_depth.PusherHapticWithDepth(ENV_CONFIG)
@@ -54,10 +55,12 @@ log(TextFlag.INFO, 'Action Spec:')
 log(TextFlag.INFO, env.action_spec())
 
 ## AGENT
+log(TextFlag.WARNING, 'Setup SAC Agent')
 sac = world.sac.agent.SAC(collect_env)
 tf_agent = sac.create_agent()
 
 ### REPLAY BUFFER
+log(TextFlag.WARNING, 'Setup replay buffer')
 rate_limiter = reverb.rate_limiters.SampleToInsertRatio(samples_per_insert=3.0, min_size_to_sample=3, error_buffer=3.0)
 table_name = 'uniform_table'
 table = reverb.Table(
@@ -77,11 +80,13 @@ dataset = reverb_replay.as_dataset(sample_batch_size=batch_size, num_steps=2).pr
 experience_dataset_fn = lambda: dataset
 
 ### POLICIES
+log(TextFlag.WARNING, 'Setup a Policy')
 eval_policy = py_tf_eager_policy.PyTFEagerPolicy(tf_agent.policy, use_tf_function=True)
 collect_policy = py_tf_eager_policy.PyTFEagerPolicy(tf_agent.collect_policy, use_tf_function=True)
 random_policy = random_py_policy.RandomPyPolicy(collect_env.time_step_spec(), collect_env.action_spec())
 
 ### ACTORS
+log(TextFlag.WARNING, 'Setup Actors')
 rb_observer = reverb_utils.ReverbAddTrajectoryObserver(
     reverb_replay.py_client,
     table_name,
@@ -116,6 +121,7 @@ eval_actor = actor.Actor(
 )
 
 ### LEARNERS
+log(TextFlag.WARNING, 'Setup Learners')
 saved_model_dir = os.path.join(tempdir, learner.POLICY_SAVED_MODEL_DIR)
 
 # Triggers to save the agent's policy checkpoints.
@@ -136,7 +142,7 @@ agent_learner = learner.Learner(
     triggers=learning_triggers)
 
 
-### METRICS
+## METRICS
 def get_eval_metrics():
     eval_actor.run()
     results = {}
@@ -145,26 +151,25 @@ def get_eval_metrics():
     return results
 
 
-metrics = get_eval_metrics()
-
-
 def log_eval_metrics(step, metrics):
     eval_results = (', ').join(
         '{} = {:.6f}'.format(name, result) for name, result in metrics.items())
     log(TextFlag.INFO, 'step = {0}: {1}'.format(step, eval_results))
 
 
+metrics = get_eval_metrics()
 log_eval_metrics(0, metrics)
 
 ### TRAINING
 # Reset the train step
+log(TextFlag.WARNING, 'Start Training')
 tf_agent.train_step_counter.assign(0)
 
 # Evaluate the agent's policy once before training.
 avg_return = get_eval_metrics()["AverageReturn"]
 returns = [avg_return]
 
-for _ in range(num_iterations):
+for i in range(num_iterations):
 
     # Training.
     collect_actor.run()
