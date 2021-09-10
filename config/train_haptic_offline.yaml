@@ -25,6 +25,10 @@ object_spring_stiffness_mean: 700.0
 object_spring_stiffness_sigma: 350.0
 object_elastic_stiffness_mean: 700.0
 object_elastic_stiffness_sigma: 350.0
+object_pybullet_rgba_color: [ 1, 0, 0, 1 ]
+object_color_threshold_low: [ 100, 0, 0 ]
+object_color_threshold_high: [ 255, 50, 50 ]
+
 
 cam_target_pos: [ 0, 0.3, 0.1 ]  # camera settings
 cam_roll: 0

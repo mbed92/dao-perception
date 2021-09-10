@@ -48,9 +48,8 @@ lstm_units: 32
 lstm_stateful: True
 load_path: '/home/mbed/Projects/rl-physnet/scripts/logs_offline'
 
-termination_reward: 50.0 # RL
-time_penalty_init: 0.0
-time_penalty_delta: 0.5
+termination_reward: 100.0 # RL
+time_discount: 0.99
 termination_steps: 20
 
 # haptic properties classifier
@@ -58,3 +57,5 @@ lr: 1e-3
 lr_decay_steps: 1000
 lr_decay_rate: 0.99
 save_path: '/tmp/mynet'
+
+DEBUG: True
