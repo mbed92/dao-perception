@@ -11,7 +11,7 @@ from tf_agents.trajectories import time_step as ts
 from utils.text import TextFlag, log
 from world.action.primitives import PushAction
 from world.environment.base import BaseEnv
-from world.environment.rewards import reward_train_predictive_model
+from world.environment.rewards import reward_from_haptic_net
 from world.physics.phys_net import CNNClassifier
 
 
@@ -40,6 +40,7 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         self._termination_reward = config["termination_reward"]
         self._termination_steps = config["termination_steps"]
         self._steps = 0
+        self._global_steps_num = 0
         self._observations_size = [2, 480, 640, 1]
 
         # define specs POSES
@@ -58,7 +59,16 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
             name='map')
 
         self._state = np.zeros(shape=self._observations_size, dtype=np.float32)
-        self.predictive_model, self.eta, self.eta_value, self.optimizer, self.ckpt_man = self._setup_predictive_model()
+        self._gradients = list()
+
+        # setup a haptic network
+        self._predictive_model, \
+        self._eta, \
+        self._eta_value, \
+        self._haptic_optimizer, \
+        self._haptic_ckpt_man, \
+        self._haptic_metric_loss, \
+        self._haptic_writer = self._setup_predictive_model()
 
     def action_spec(self):
         return self._action_spec
@@ -101,11 +111,33 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         observations = [np.clip((o - np.mean(o)) / np.std(o), v_min, v_max) for o in observations]
         return np.asarray(observations)
 
+    def _optimize_haptic_net(self):
+        self._haptic_optimizer.apply_gradients(zip(self._gradients, self._predictive_model.trainable_variables))
+        self._global_steps_num += 1
+        log(TextFlag.WARNING, f"Haptic Net optimized! Num optimization steps: {self._global_steps_num}")
+
     def _reset(self):
         self.reset_sim()
         self._steps = 0
         self._episode_ended = False
         self._state = np.zeros(shape=self._observations_size, dtype=np.float32)
+
+        if len(self._gradients) > 0:
+            self._optimize_haptic_net()
+        self._gradients = list()
+
+        # add haptic loss to the tensorboard
+        with self._haptic_writer.as_default():
+            tf.summary.scalar(self._haptic_metric_loss.name, self._haptic_metric_loss.result().numpy(),
+                              step=self._global_steps_num)
+        self._haptic_writer.flush()
+
+        if self._global_steps_num and self._global_steps_num % self.config["haptic_net_save_period"] == 0:
+            self._eta.assign(self._eta_value(self._global_steps_num))
+            self._haptic_ckpt_man.save()
+            path = self.config["save_path"]
+            log(TextFlag.WARNING, f"Haptic net saved at {path}")
+
         return ts.restart(self._state)
 
     def _step(self, action):
@@ -122,15 +154,20 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         self._state = np.asarray(observations, dtype=np.float32)
 
         # calculate a reward
-        reward = 0.0
-        # reward = reward_train_predictive_model(state=self._state,
-        #                                        action=action.to_numpy(),
-        #                                        model=self.predictive_model,
-        #                                        y_true=info["haptic"],
-        #                                        eta=self.eta,
-        #                                        eta_value=self.eta_value,
-        #                                        optimizer=self.optimizer,
-        #                                        ckpt_man=self.ckpt_man)
+        reward, haptic_net_gradients, loss = reward_from_haptic_net(state=self._state,
+                                                                    action=action.to_numpy(),
+                                                                    model=self._predictive_model,
+                                                                    y_true=info["haptic"])
+
+        # add get haptic loss
+        self._haptic_metric_loss.update_state(loss.numpy())
+
+        # add the gradients to the moving average of the episode
+        if len(self._gradients) > 1 and len(self._gradients) == len(haptic_net_gradients):
+            for i in range(len(self._gradients)):
+                self._gradients[i] = (self._gradients[i] + haptic_net_gradients[i]) / 2.0
+        else:
+            self._gradients = list(haptic_net_gradients)
 
         # terminate if needed
         if reward > self._termination_reward or self._steps > self._termination_steps:
@@ -138,7 +175,8 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
 
         if self.config["DEBUG"]:
             log(TextFlag.INFO, f"reward: {reward}\tstep: {self._steps}\taction: {action}\t state: {self._state.shape}\t"
-                               f"isNaN: {np.isnan(self._state).any()}\tisInf: {np.isinf(self._state).any()}\t")
+                               f"isNaN: {np.isnan(self._state).any()}\tisInf: {np.isinf(self._state).any()}\t"
+                               f"gradients len: {len(self._gradients)}")
 
         # return a result
         self._steps += 1
@@ -167,7 +205,11 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         ckpt = tf.train.Checkpoint(optimizer=optimizer, model=model)
         ckpt_man = tf.train.CheckpointManager(ckpt, self.config["save_path"], max_to_keep=10)
 
-        return model, eta, eta_value, optimizer, ckpt_man
+        metric_loss = tf.keras.metrics.Mean(name="MeanLoss")
+
+        writer = tf.summary.create_file_writer(os.path.join(self.config["save_path"], "haptic_net_train"))
+
+        return model, eta, eta_value, optimizer, ckpt_man, metric_loss, writer
 
     def _get_masked_depth(self):
         depth_before = self.get_depth_image()

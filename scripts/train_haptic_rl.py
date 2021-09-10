@@ -21,7 +21,7 @@ plt.ion()
 
 ## PARAMS
 num_iterations = 100000
-initial_collect_steps = 1000
+initial_collect_steps = 100
 collect_steps_per_iteration = 1
 replay_buffer_capacity = 100
 batch_size = 256

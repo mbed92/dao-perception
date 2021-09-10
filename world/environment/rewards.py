@@ -28,9 +28,10 @@ def reward_haptic(state, action, **kwargs):
     return reward
 
 
-def reward_train_predictive_model(state, action, **kwargs):
+def reward_from_haptic_net(state, action, **kwargs):
     assert "y_true" in kwargs.keys()
     assert "model" in kwargs.keys()
+
     feed = (state, np.tile(action[np.newaxis, ...], [1, 2, 1]))
     with tf.GradientTape() as tape:
         y_pred = kwargs["model"](feed, training=True)
@@ -40,7 +41,5 @@ def reward_train_predictive_model(state, action, **kwargs):
         loss_reg = loss_no_reg + l2_reg
 
     gradients = tape.gradient(loss_reg, kwargs["model"].trainable_variables)
-    kwargs["optimizer"].apply_gradients(zip(gradients, kwargs["model"].trainable_variables))
-
     reward = (1.0 / (tf.abs(loss_no_reg) + 1e-5))
-    return reward
+    return reward, gradients, loss_no_reg
