@@ -47,15 +47,14 @@ dropout: 0.8
 lstm_units: 32
 lstm_stateful: True
 load_path: '/home/mbed/Projects/rl-physnet/scripts/logs_offline'
+lr: 1e-3
+lr_decay_steps: 1000
+lr_decay_rate: 0.99
+save_path: '/tmp/rl/mynet'
+haptic_net_save_period: 1000
 
 termination_reward: 100.0 # RL
 time_discount: 0.99
 termination_steps: 20
 
-# haptic properties classifier
-lr: 1e-3
-lr_decay_steps: 1000
-lr_decay_rate: 0.99
-save_path: '/tmp/mynet'
-
-DEBUG: True
+DEBUG: False
