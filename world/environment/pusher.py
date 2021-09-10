@@ -134,7 +134,6 @@ class RLPusherEnvHapticProperties(py_environment.PyEnvironment, BaseEnv):
             observations.append(state_after)
 
             # wait more and get new observation
-            self.step_sim_with_force(action)
             state_post_after = p.getBasePositionAndOrientation(self.object)
             observations.append(state_post_after)
 
