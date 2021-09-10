@@ -122,14 +122,15 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         self._state = np.asarray(observations, dtype=np.float32)
 
         # calculate a reward
-        reward = reward_train_predictive_model(state=self._state,
-                                               action=action.to_numpy(),
-                                               model=self.predictive_model,
-                                               y_true=info["haptic"],
-                                               eta=self.eta,
-                                               eta_value=self.eta_value,
-                                               optimizer=self.optimizer,
-                                               ckpt_man=self.ckpt_man)
+        reward = 0.0
+        # reward = reward_train_predictive_model(state=self._state,
+        #                                        action=action.to_numpy(),
+        #                                        model=self.predictive_model,
+        #                                        y_true=info["haptic"],
+        #                                        eta=self.eta,
+        #                                        eta_value=self.eta_value,
+        #                                        optimizer=self.optimizer,
+        #                                        ckpt_man=self.ckpt_man)
 
         # terminate if needed
         if reward > self._termination_reward or self._steps > self._termination_steps:
