@@ -55,7 +55,7 @@ visualize_interval = 10
 
 ## ENVIRONMENT
 ENV_CONFIG = yaml.safe_load(open("../config/train_haptic_rl.yaml", 'r'))
-env = world.environment.pus(ENV_CONFIG)
+env = world.environment.pusher_haptic_encoder_decoder.PushNetEncoderDecoder(ENV_CONFIG)
 env.reset()
 
 log(TextFlag.INFO, 'Observation Spec:')
@@ -73,61 +73,8 @@ action_step = my_random_tf_policy.action(time_step)
 print('Action:')
 print(action_step.action)
 
+for i in range(1000):
+    env.step(action_step.action)
 
-# ## METRICS
-# def get_eval_metrics():
-#     eval_actor.run()
-#     results = {}
-#     for metric in eval_actor.metrics:
-#         results[metric.name] = metric.result()
-#     return results
-#
-#
-# def log_eval_metrics(step, metrics):
-#     eval_results = (', ').join(
-#         '{} = {:.6f}'.format(name, result) for name, result in metrics.items())
-#     log(TextFlag.INFO, 'step = {0}: {1}'.format(step, eval_results))
-#
-#
-# metrics = get_eval_metrics()
-# log_eval_metrics(0, metrics)
-#
-# ### TRAINING
-# # Reset the train step
-# log(TextFlag.WARNING, 'Start Training')
-# tf_agent.train_step_counter.assign(0)
-#
-# # Evaluate the agent's policy once before training.
-# avg_return = get_eval_metrics()["AverageReturn"]
-# returns = [avg_return]
-#
-# for i in range(num_iterations):
-#
-#     # Training.
-#     collect_actor.run()
-#     loss_info = agent_learner.run(iterations=1)
-#
-#     # Evaluating
-#     if eval_interval and agent_learner.train_step_numpy % eval_interval == 0:
-#         metrics = get_eval_metrics()
-#         log_eval_metrics(agent_learner.train_step_numpy, metrics)
-#         returns.append(metrics["AverageReturn"])
-#
-#     if log_interval and agent_learner.train_step_numpy % log_interval == 0:
-#         log(TextFlag.INFO, 'step = {0}: loss = {1}'.format(agent_learner.train_step_numpy, loss_info.loss.numpy()))
-#
-#     if visualization_on and visualize_interval and agent_learner.train_step_numpy % visualize_interval == 0:
-#         log(TextFlag.WARNING, "Visualization on")
-#         time_step = eval_env.reset()
-#         fig, ax = plt.subplots()
-#         while not time_step.is_last():
-#             action_step = eval_actor.policy.action(time_step)
-#             time_step = eval_env.step(action_step.action)
-#             img = eval_env.get_color_image()
-#             plt.imshow(img)
-#             plt.show(block=False)
-#             plt.pause(0.00001)
-#         plt.close(fig)
-#
-# rb_observer.close()
-# reverb_server.stop()
+    if i % 20 == 0:
+        env.reset()

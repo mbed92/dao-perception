@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 
@@ -17,11 +18,11 @@ class HapticEncoderDecoder(tf.keras.Model):
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation("gelu"),
             tf.keras.layers.Dropout(self.dropout),
-            tf.keras.layers.Conv2D(64, 5, 4, padding="same"),
+            tf.keras.layers.Conv2D(64, 5, 2, padding="same"),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation("gelu"),
             tf.keras.layers.Dropout(self.dropout),
-            tf.keras.layers.Conv2D(128, 5, 4, padding="same"),
+            tf.keras.layers.Conv2D(128, 5, 5, padding="same"),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation("gelu"),
             tf.keras.layers.Dropout(self.dropout)
@@ -34,15 +35,11 @@ class HapticEncoderDecoder(tf.keras.Model):
 
         # aggregate data from timesteps
         self.decoder = tf.keras.Sequential([
-            tf.keras.layers.Conv2DTranspose(128, 5, 4, padding="same"),
+            tf.keras.layers.Conv2DTranspose(64, 5, 5, padding="same"),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation("gelu"),
             tf.keras.layers.Dropout(self.dropout),
-            tf.keras.layers.Conv2DTranspose(64, 5, 4, padding="same"),
-            tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Activation("gelu"),
-            tf.keras.layers.Dropout(self.dropout),
-            tf.keras.layers.Conv2DTranspose(32, 5, 4, padding="same"),
+            tf.keras.layers.Conv2DTranspose(32, 5, 2, padding="same"),
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation("gelu"),
             tf.keras.layers.Dropout(self.dropout),
@@ -50,7 +47,7 @@ class HapticEncoderDecoder(tf.keras.Model):
             tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation("gelu"),
             tf.keras.layers.Dropout(self.dropout),
-            tf.keras.layers.Conv2D(1, 5, 4, padding="same"),
+            tf.keras.layers.Conv2DTranspose(1, 5, 4, padding="same")
         ])
 
     def __call__(self, inputs, training=None, mask=None):
@@ -61,5 +58,15 @@ class HapticEncoderDecoder(tf.keras.Model):
         feed = tf.concat([features_flat, action], -1)
         feed = tf.cast(feed, tf.float32)
 
-        depth_after_hat = self.decoder(feed, training=training)
-        return depth_after_hat
+        num_units = np.prod(tf.shape(features).numpy())
+
+        features_flat_action = tf.keras.Sequential([
+            tf.keras.layers.Dense(num_units),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Activation("gelu"),
+            tf.keras.layers.Dropout(self.dropout)
+        ])(feed, training=training)
+
+        features_flat_action_reshaped = tf.reshape(features_flat_action, shape=tf.shape(features))
+        depth_after_hat = self.decoder(features_flat_action_reshaped, training=training)
+        return depth_after_hat, None
