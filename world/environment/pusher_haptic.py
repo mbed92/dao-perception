@@ -9,7 +9,7 @@ from utils.text import TextFlag, log
 from world.action.primitives import PushAction
 from world.environment.base import BaseEnv
 from world.environment.rewards import reward_haptic
-from world.physics.phys_net import HapticRegressor
+from world.physics.haptic_regressor import HapticRegressor
 
 
 class PusherHapticProperties(py_environment.PyEnvironment, BaseEnv):

@@ -12,10 +12,10 @@ from world.action.primitives import PushAction
 from world.environment.base import BaseEnv
 from world.environment.rewards import reward_from_haptic_net
 from world.environment.utils import get_object_mask, place_camera_in_front_of_object
-from world.physics.CNN_classifier import CNNClassifier
+from world.physics.haptic_encoder_decoder import HapticEncoderDecoder
 
 
-class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
+class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
     def __init__(self, config):
         py_environment.PyEnvironment.__init__(self)
         BaseEnv.__init__(self, config)
@@ -26,7 +26,7 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
         self._termination_steps = config["termination_steps"]
         self._steps = 0
         self._global_steps_num = 0
-        self._observations_size = [2, 480, 640, 1]
+        self._observations_size = [1, 480, 640, 1]
 
         # define specs POSES
         self._action_spec = array_spec.BoundedArraySpec(
@@ -185,12 +185,8 @@ class PusherHapticWithDepth(py_environment.PyEnvironment, BaseEnv):
             return ts.transition(self._state, reward=reward, discount=self._time_discount)
 
     def _setup_predictive_model(self):
-        model = CNNClassifier(batch_size=self.config["batch_size"],
-                              num_outputs=self.config["num_outputs"],
-                              action_kernel_size=self.config["action_kernel_size"],
-                              dropout=self.config["dropout"],
-                              lstm_units=self.config["lstm_units"],
-                              stateful_lstm=self.config["lstm_stateful"])
+        model = HapticEncoderDecoder(batch_size=self.config["batch_size"],
+                                     dropout=self.config["dropout"])
 
         # initialize a model
         mock_action = PushAction.random_sample(10).to_numpy()

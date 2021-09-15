@@ -3,7 +3,7 @@ import pybullet as p
 
 from world.action.primitives import PushAction
 from world.environment.base import BaseEnv
-from world.physics.phys_net import HapticRegressor
+from world.physics.haptic_regressor import HapticRegressor
 
 
 class PusherDemo(BaseEnv):
