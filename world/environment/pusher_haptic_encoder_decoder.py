@@ -13,14 +13,33 @@ from world.action.primitives import PushAction
 from world.environment.base import BaseEnv
 from world.environment.utils import get_object_mask, place_camera_in_front_of_object
 from world.physics.haptic_encoder_decoder import HapticEncoderDecoder
+from world.physics.utils import add_to_tensorboard
+
+
+def extract_bbox(mask):
+    """
+    Returns bounding box of a provided binary image in pixel coordinates.
+    :param mask: [B, H, W]
+    :return: [y_up, x_up, y_down, x_down]
+    """
+
+    indices = tf.where(tf.squeeze(mask, -1))
+    if tf.shape(indices)[0] == 0:
+        return tf.zeros(shape=[tf.shape(mask)[0], 4])
+
+    x_up = tf.reduce_max(indices[:, 2], keepdims=True)
+    x_down = tf.reduce_min(indices[:, 2], keepdims=True)
+    y_up = tf.reduce_max(indices[:, 1], keepdims=True)
+    y_down = tf.reduce_min(indices[:, 1], keepdims=True)
+    return tf.stack([x_up, y_up, x_down, y_down], 1)
 
 
 def depth_images_loss(y_true, y_hat):
-    mask_true = tf.cast(tf.clip_by_value(y_true, 0, 1), tf.bool)
-    mask_pred = tf.cast(tf.clip_by_value(y_hat, 0, 1), tf.bool)
-    # iou_loss = tfa.losses.giou_loss(mask_true, mask_pred)
+    mask_true = extract_bbox(y_true)
+    mask_pred = extract_bbox(y_hat)
+    iou_loss = tfa.losses.giou_loss(mask_true, mask_pred)
     abs_loss = tf.reduce_mean(tf.keras.losses.mean_absolute_error(y_true, y_hat))
-    return abs_loss
+    return abs_loss + iou_loss
 
 
 class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
@@ -52,9 +71,11 @@ class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
             name='map')
 
         self._state = np.zeros(shape=self._observations_size, dtype=np.float32)
-        self._gradients = list()
 
         # setup a haptic network
+        self._batch_depth = list()
+        self._batch_action = list()
+        self._y_true = list()
         self._predictive_model, \
         self._eta, \
         self._eta_value, \
@@ -109,26 +130,47 @@ class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
 
         return np.asarray(observations)
 
-    def _optimize_haptic_net(self):
-        self._haptic_optimizer.apply_gradients(zip(self._gradients, self._predictive_model.trainable_variables))
-        self._global_steps_num += 1
-        log(TextFlag.WARNING, f"Haptic Net optimized! Num optimization steps: {self._global_steps_num}")
-
     def _reset(self):
         self.reset_sim()
         self._steps = 0
         self._episode_ended = False
         self._state = np.zeros(shape=self._observations_size, dtype=np.float32)
 
-        if len(self._gradients) > 0:
-            self._optimize_haptic_net()
-        self._gradients = list()
+        # optimize net
+        if len(self._batch_action) > 0 and \
+                len(self._batch_depth) > 0 and \
+                len(self._y_true) > 0 and \
+                len(self._y_true) == len(self._batch_depth) == len(self._batch_action):
+            with tf.GradientTape() as tape:
+                depth = tf.cast(tf.concat(self._batch_depth, 0), tf.float32)
+                actions = tf.cast(tf.concat(self._batch_action, 0), tf.float32)
+                predicted_depth_true = tf.cast(tf.concat(self._y_true, 0), tf.float32)
+                predicted_depth_hat = self._predictive_model([depth, actions], training=True)
+                loss_no_reg = depth_images_loss(predicted_depth_true, predicted_depth_hat)
+                l2_reg = tf.add_n(
+                    [tf.nn.l2_loss(tf.cast(v, tf.float32)) for v in self._predictive_model.trainable_variables]
+                ) * 0.001
+                loss_reg = loss_no_reg + l2_reg
 
-        # add haptic loss to the tensorboard
-        with self._haptic_writer.as_default():
-            tf.summary.scalar(self._haptic_metric_loss.name, self._haptic_metric_loss.result().numpy(),
-                              step=self._global_steps_num)
-        self._haptic_writer.flush()
+            gradients = tape.gradient(loss_reg, self._predictive_model.trainable_variables)
+            self._haptic_optimizer.apply_gradients(zip(gradients, self._predictive_model.trainable_variables))
+            self._global_steps_num += 1
+            log(TextFlag.WARNING, f"Haptic Net optimized! Num optimization steps: {self._global_steps_num}")
+            self._haptic_metric_loss.update_state(loss_no_reg)
+
+            # add haptic loss to the tensorboard
+            with self._haptic_writer.as_default():
+                add_to_tensorboard({
+                    "img_y_true": predicted_depth_hat,
+                    "img_y_hat": predicted_depth_true,
+                    "scalar_loss": [self._haptic_metric_loss]
+                }, self._global_steps_num, "train")
+                self._haptic_writer.flush()
+
+            # clear batch
+            self._batch_depth = list()
+            self._batch_action = list()
+            self._y_true = list()
 
         if self._global_steps_num and self._global_steps_num % self.config["haptic_net_save_period"] == 0:
             self._eta.assign(self._eta_value(self._global_steps_num))
@@ -166,28 +208,11 @@ class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
         # gather experience
         depth_before = observations[0][np.newaxis, ...]
         depth_after = observations[1][np.newaxis, ...]
-        with tf.GradientTape() as tape:
-            predicted_depth_hat, metrics = self._predictive_model([depth_before, action.to_numpy()], training=True)
-            predicted_depth_true = tf.convert_to_tensor(depth_after)
-            loss_no_reg = depth_images_loss(predicted_depth_true, predicted_depth_hat)
-            l2_reg = tf.add_n(
-                [tf.nn.l2_loss(tf.cast(v, tf.float32)) for v in self._predictive_model.trainable_variables]
-            ) * 0.001
-            loss_reg = loss_no_reg + l2_reg
+        self._batch_depth.append(depth_before)
+        self._batch_action.append(action.to_numpy())
+        self._y_true.append(depth_after)
 
-        # add loss to tensorboard
-        self._haptic_metric_loss.update_state(loss_no_reg.numpy())
-
-        # get mean gradients
-        gradients = tape.gradient(loss_reg, self._predictive_model.trainable_variables)
-        if len(self._gradients) > 1 and len(self._gradients) == len(gradients):
-            for i in range(len(self._gradients)):
-                self._gradients[i] = (self._gradients[i] + gradients[i]) / 2.0
-        else:
-            self._gradients = list(gradients)
-        self._gradients.append(gradients)
-
-        # calculate a reward
+        # calculate a reward (not needed when the policy is random)
         reward = 0.0
 
         # return a result
