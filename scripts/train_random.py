@@ -28,7 +28,7 @@ def start(args):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('--n-episodes-train', type=int, default=10000)
-    parser.add_argument('--n-actions', type=int, default=30)
+    parser.add_argument('--n-actions', type=int, default=10)
     args, _ = parser.parse_known_args()
     world.physics.utils.allow_memory_growth()
     start(args)

@@ -39,7 +39,7 @@ def depth_images_loss(y_true, y_hat):
     mask_pred = extract_bbox(y_hat)
     iou_loss = tfa.losses.giou_loss(mask_true, mask_pred)
     abs_loss = tf.reduce_mean(tf.keras.losses.mean_absolute_error(y_true, y_hat))
-    return abs_loss + iou_loss
+    return abs_loss, iou_loss
 
 
 class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
@@ -81,8 +81,12 @@ class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
         self._eta_value, \
         self._haptic_optimizer, \
         self._haptic_ckpt_man, \
-        self._haptic_metric_loss, \
         self._haptic_writer = self._setup_predictive_model()
+
+        # setup metrics
+        self._giou_metric = tf.keras.metrics.Mean(name="giou")
+        self._abs_metric = tf.keras.metrics.Mean(name="abs")
+        self._total_metric = tf.keras.metrics.Mean(name="total")
 
     def action_spec(self):
         return self._action_spec
@@ -143,27 +147,31 @@ class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
                 len(self._y_true) == len(self._batch_depth) == len(self._batch_action):
             with tf.GradientTape() as tape:
                 depth = tf.cast(tf.concat(self._batch_depth, 0), tf.float32)
+                d_mean, d_std = tf.reduce_mean(depth, keepdims=True), tf.math.reduce_std(depth, keepdims=True)
+                depth_per_batch_normalized = (depth - d_mean) / d_std
                 actions = tf.cast(tf.concat(self._batch_action, 0), tf.float32)
                 predicted_depth_true = tf.cast(tf.concat(self._y_true, 0), tf.float32)
-                predicted_depth_hat = self._predictive_model([depth, actions], training=True)
-                loss_no_reg = depth_images_loss(predicted_depth_true, predicted_depth_hat)
+                predicted_depth_hat = self._predictive_model([depth_per_batch_normalized, actions], training=True)
+                abs_loss, iou_loss = depth_images_loss(predicted_depth_true, predicted_depth_hat)
                 l2_reg = tf.add_n(
                     [tf.nn.l2_loss(tf.cast(v, tf.float32)) for v in self._predictive_model.trainable_variables]
                 ) * 0.001
-                loss_reg = loss_no_reg + l2_reg
+                loss_reg = abs_loss + iou_loss + l2_reg
 
             gradients = tape.gradient(loss_reg, self._predictive_model.trainable_variables)
             self._haptic_optimizer.apply_gradients(zip(gradients, self._predictive_model.trainable_variables))
-            self._global_steps_num += 1
-            log(TextFlag.WARNING, f"Haptic Net optimized! Num optimization steps: {self._global_steps_num}")
-            self._haptic_metric_loss.update_state(loss_no_reg)
+
+            # update metrics
+            self._giou_metric.update_state(iou_loss)
+            self._abs_metric.update_state(abs_loss)
+            self._total_metric.update_state(loss_reg)
 
             # add haptic loss to the tensorboard
             with self._haptic_writer.as_default():
                 add_to_tensorboard({
                     "img_y_true": predicted_depth_hat,
                     "img_y_hat": predicted_depth_true,
-                    "scalar_loss": [self._haptic_metric_loss]
+                    "scalar_loss": [self._giou_metric, self._abs_metric, self._total_metric]
                 }, self._global_steps_num, "train")
                 self._haptic_writer.flush()
 
@@ -171,6 +179,10 @@ class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
             self._batch_depth = list()
             self._batch_action = list()
             self._y_true = list()
+
+            # increment step
+            self._global_steps_num += 1
+            log(TextFlag.WARNING, f"Haptic Net optimized! Num optimization steps: {self._global_steps_num}")
 
         if self._global_steps_num and self._global_steps_num % self.config["haptic_net_save_period"] == 0:
             self._eta.assign(self._eta_value(self._global_steps_num))
@@ -245,7 +257,6 @@ class PushNetEncoderDecoder(py_environment.PyEnvironment, BaseEnv):
         ckpt_man = tf.train.CheckpointManager(ckpt, self.config["save_path"], max_to_keep=10)
 
         # add a metric writer
-        metric_loss = tf.keras.metrics.Mean(name="MeanLoss")
         writer = tf.summary.create_file_writer(os.path.join(self.config["save_path"], "haptic_net_train"))
 
-        return model, eta, eta_value, optimizer, ckpt_man, metric_loss, writer
+        return model, eta, eta_value, optimizer, ckpt_man, writer
