@@ -1,0 +1,32 @@
+dataset_keys: [ "train", "validation", "test" ]
+common:
+  sequence_length: 0.5  # seconds
+  sequence_dt: 0.0001  # seconds
+  sequence_dstep: 100  # run callback each 100 simulation steps
+  rod_num_elements: 25
+  rod_start_position: [ 0.0, 1.0, 0.0 ]
+  rod_direction: [ 0.0, 0.0, 1.0 ]
+  rod_normal: [ 0.0, 1.0, 0.0 ]
+  rod_base_length: 1.0
+  rod_base_radius: 0.025
+
+train:
+  num_sequences: 2
+  rod_density_range: [ 1000, 1500 ]  # density of rod (kg/m^3)
+  rod_energy_dissipation_range: [ 0.0001, 0.01 ]  # Energy dissipation of rod
+  rod_youngus_modulus_range: [ 1000000, 10000000 ] # Elastic Modulus (Pa)
+  rod_poisson_ratio: [ 0.3, 0.7 ] # Poisson Ratio
+
+validation:
+  num_sequences: 2
+  rod_density_range: [ 1000, 1500 ]  # density of rod (kg/m^3)
+  rod_energy_dissipation_range: [ 0.0001, 0.01 ]  # Energy dissipation of rod
+  rod_youngus_modulus_range: [ 1000000, 10000000 ] # Elastic Modulus (Pa)
+  rod_poisson_ratio: [ 0.3, 0.7 ] # Poisson Ratio
+
+test:
+  num_sequences: 2
+  rod_density_range: [ 1000, 1500 ]  # density of rod (kg/m^3)
+  rod_energy_dissipation_range: [ 0.0001, 0.01 ]  # Energy dissipation of rod
+  rod_youngus_modulus_range: [ 1000000, 10000000 ] # Elastic Modulus (Pa)
+  rod_poisson_ratio: [ 0.3, 0.7 ] # Poisson Ratio
