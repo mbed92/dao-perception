@@ -1,12 +1,13 @@
 from argparse import ArgumentParser
 
 import yaml
+
 import world
+
 
 def generate(args):
     config = yaml.safe_load(open(args.config_file, 'r'))
-    train_data, val_data, test_data = world.elastica.generator.randomized_dataset(config)
-    print(config)
+    world.elastica.generator.randomized_dataset(config)
 
 
 if __name__ == "__main__":

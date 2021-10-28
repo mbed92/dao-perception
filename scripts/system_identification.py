@@ -29,7 +29,6 @@ def run_model(model, final_time=0.5):
     timestepper = PositionVerlet()
     dt = 1.0e-4
     total_steps = int(final_time / dt)
-    print("Total steps", total_steps)
     integrate(timestepper, model, final_time, total_steps)
 
 
@@ -132,8 +131,9 @@ pp_list.clear()
 
 # We want to minimize the sinus function between 0 and 2pi
 def f(density, nu, youngs_modulus, poisson_ratio):
-    run_model(create_model(density, nu, youngs_modulus, poisson_ratio))
-    distance = np.linalg.norm(s_tplus1 - pp_list["position"][-1])
+    model = create_model(density, nu, youngs_modulus, poisson_ratio)
+    run_model(model)
+    distance = np.linalg.norm(s_tplus1 - pp_list["position"][-1], axis=1)
     pp_list.clear()
     return distance.mean()
 
@@ -166,14 +166,12 @@ optimization_problem = OptimizationProblem.from_list(optimization_problem_data)
 optimizer = optimizers["parzen_estimator"](optimization_problem)
 sample = optimizer.suggest()
 
-number_of_evaluation = 100
+number_of_evaluation = 5
 for _ in range(number_of_evaluation):
     sample = optimizer.suggest()
-    print(sample)
     loss = f(**sample)
     observation = Observation.from_dict({"loss": loss, "sample": sample})
     optimization_problem.add_observation(observation)
-    print(loss)
 
 a = optimization_problem.get_best_k_samples(1)
-print("BEST: ", a[0].sample)
+print(f"BEST parameters: {a[0].sample}, loss: {a[0].loss}")
