@@ -1,0 +1,1 @@
+from .lstm import create_bidir_lstm_layer
